@@ -209,5 +209,30 @@ router.get('/connect/requests', auth, async (req, res) => {
     res.json(pending);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
+// Change username
+router.put('/username', auth, async (req, res) => {
+  try {
+    const { newUsername } = req.body;
+    if (!newUsername || newUsername.length < 3)
+      return res.status(400).json({ error: 'Username min 3 chars' });
+    if (!/^[a-zA-Z0-9_]+$/.test(newUsername))
+      return res.status(400).json({ error: 'Letters, numbers, _ only' });
+    const exists = await User.findOne({ username: newUsername });
+    if (exists) return res.status(400).json({ error: 'Username already taken' });
+    const user = await User.findByIdAndUpdate(req.user.id, { username: newUsername }, { new: true });
+    const token = jwt.sign({ id: user._id, username: user.username }, process.env.JWT_SECRET, { expiresIn: '30d' });
+    res.json({ token, username: user.username });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Delete account
+router.delete('/account', auth, async (req, res) => {
+  try {
+    const Message = require('../models/Message');
+    await Message.deleteMany({ senderId: String(req.user.id) });
+    await User.findByIdAndDelete(req.user.id);
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
 
 module.exports = router;
