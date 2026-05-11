@@ -137,23 +137,23 @@ http://localhost:5000
 > Modern glassmorphism UI with real-time messaging experience.
 
 <p align="center">
-  <img width="800" src="https://github.com/user-attachments/assets/6cece65b-9728-4de9-bc22-4cd32c2dc3c9" />
+  <img width="500" src="https://github.com/user-attachments/assets/6cece65b-9728-4de9-bc22-4cd32c2dc3c9" />
 </p>
 
 <p align="center">
-  <img width="800" src="https://github.com/user-attachments/assets/6b8be2c6-3553-4537-8912-6445ae9ac79c" />
+  <img width="500" src="https://github.com/user-attachments/assets/6b8be2c6-3553-4537-8912-6445ae9ac79c" />
 </p>
 
 <p align="center">
-  <img width="800" src="https://github.com/user-attachments/assets/b1199b6b-50f3-45e8-984c-509005e82e16" />
+  <img width="500" src="https://github.com/user-attachments/assets/b1199b6b-50f3-45e8-984c-509005e82e16" />
 </p>
 
 <p align="center">
-  <img width="800" src="https://github.com/user-attachments/assets/882d445f-047d-4120-a321-19762877da88" />
+  <img width="500" src="https://github.com/user-attachments/assets/882d445f-047d-4120-a321-19762877da88" />
 </p>
 
 <p align="center">
-  <img width="800" src="https://github.com/user-attachments/assets/a6a97670-158d-46c6-a026-605ed5a2488c" />
+  <img width="500" src="https://github.com/user-attachments/assets/a6a97670-158d-46c6-a026-605ed5a2488c" />
 </p>
 
 ---
@@ -187,6 +187,5 @@ This project is licensed under the MIT License.
 ---
 
 <p align="center">
-  Made with ❤️ by <strong>Mahalakshmi K</strong>
+  Made with ❤️ by <strong>Maha Lakshmi K</strong>
 </p>
-```
