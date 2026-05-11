@@ -1,9 +1,7 @@
-````md
 # 💬 AuraTalk
 
 > Real-time full-stack chat application built with Node.js, Socket.io & MongoDB.
 
-```html id="9fj6h4"
 <p align="center">
   <img src="https://img.shields.io/badge/AuraTalk-v3.0.0-25d366?style=for-the-badge&logo=whatsapp&logoColor=white">
   <img src="https://img.shields.io/badge/Node.js-18.x-339933?style=for-the-badge&logo=node.js&logoColor=white">
@@ -11,8 +9,6 @@
   <img src="https://img.shields.io/badge/Socket.io-4.x-010101?style=for-the-badge&logo=socket.io&logoColor=white">
   <img src="https://img.shields.io/badge/Hosted-Render-46E3B7?style=for-the-badge&logo=render&logoColor=white">
 </p>
-```
-
 
 ---
 
@@ -62,25 +58,25 @@
 ```bash
 AuraTalk/
 ├── client/
-│   ├── index.html        # Login / Register page
-│   ├── chat.html         # Main chat page
+│   ├── index.html
+│   ├── chat.html
 │   ├── css/
-│   │   └── style.css     # Glassmorphism UI styles
+│   │   └── style.css
 │   └── js/
-│       ├── auth.js       # Login & Register logic
-│       └── chat.js       # Full chat functionality
+│       ├── auth.js
+│       └── chat.js
 │
 ├── server/
-│   ├── index.js          # Express + Socket.io server
+│   ├── index.js
 │   ├── models/
-│   │   ├── User.js       # User schema
-│   │   └── Message.js    # Message schema
+│   │   ├── User.js
+│   │   └── Message.js
 │   ├── routes/
-│   │   └── auth.js       # Auth API routes
+│   │   └── auth.js
 │   └── middleware/
-│       └── auth.js       # JWT middleware
+│       └── auth.js
 │
-├── .env                  # Environment variables
+├── .env
 ├── package.json
 └── README.md
 ````
@@ -89,20 +85,20 @@ AuraTalk/
 
 ## 🚀 Run Locally
 
-### 1. Clone the repository
+### 1️⃣ Clone the repository
 
 ```bash
 git clone https://github.com/mahalakshmi-005/AuraTalk.git
 cd AuraTalk
 ```
 
-### 2. Install dependencies
+### 2️⃣ Install dependencies
 
 ```bash
 npm install
 ```
 
-### 3. Configure environment variables
+### 3️⃣ Configure environment variables
 
 Create a `.env` file in the root directory:
 
@@ -112,13 +108,13 @@ JWT_SECRET=your_secret_key
 PORT=5000
 ```
 
-### 4. Start the application
+### 4️⃣ Start the application
 
 ```bash
 node server/index.js
 ```
 
-### 5. Access in browser
+### 5️⃣ Open in browser
 
 ```bash
 http://localhost:5000
@@ -128,17 +124,17 @@ http://localhost:5000
 
 ## 🔑 Environment Variables
 
-| Variable      | Description                     |
-| ------------- | ------------------------------- |
-| `MONGODB_URI` | MongoDB Atlas connection string |
-| `JWT_SECRET`  | Secret key for JWT tokens       |
-| `PORT`        | Server port (default: 5000)     |
+| Variable      | Description                       |
+| ------------- | --------------------------------- |
+| `MONGODB_URI` | MongoDB Atlas connection string   |
+| `JWT_SECRET`  | Secret key for JWT authentication |
+| `PORT`        | Server port                       |
 
 ---
 
 ## 📸 Screenshots
 
-> Modern glassmorphism UI, real-time messaging, mobile responsive design, and full chat features.
+> Modern glassmorphism UI with real-time messaging experience.
 
 <p align="center">
   <img width="800" src="https://github.com/user-attachments/assets/6cece65b-9728-4de9-bc22-4cd32c2dc3c9" />
@@ -164,13 +160,13 @@ http://localhost:5000
 
 ## 👩‍💻 Author
 
-### **Mahalakshmi K**
+### Mahalakshmi K
 
 **Frontend Developer | UI/UX Enthusiast | Full Stack Developer**
 
-* 💼 **LinkedIn:** https://www.linkedin.com/in/maha-lakshmi-k-96682a36b/
-* 💻 **GitHub:** https://github.com/mahalakshmi-005
-* 📧 **Email:** [mahalakshmidd744@gmail.com](mailto:mahalakshmidd744@gmail.com)
+* 💼 LinkedIn: [https://www.linkedin.com/in/maha-lakshmi-k-96682a36b/](https://www.linkedin.com/in/maha-lakshmi-k-96682a36b/)
+* 💻 GitHub: [https://github.com/mahalakshmi-005](https://github.com/mahalakshmi-005)
+* 📧 Email: [mahalakshmidd744@gmail.com](mailto:mahalakshmidd744@gmail.com)
 
 ---
 
@@ -178,19 +174,19 @@ http://localhost:5000
 
 For internships, freelance work, collaborations, or professional opportunities:
 
-* 📧 **Email:** [mahalakshmidd744@gmail.com](mailto:mahalakshmidd744@gmail.com)
-* 💼 **LinkedIn:** https://www.linkedin.com/in/maha-lakshmi-k-96682a36b/
-* 💻 **Portfolio / GitHub:** https://github.com/mahalakshmi-005
+* 📧 Email: [mahalakshmidd744@gmail.com](mailto:mahalakshmidd744@gmail.com)
+* 💼 LinkedIn: [https://www.linkedin.com/in/maha-lakshmi-k-96682a36b/](https://www.linkedin.com/in/maha-lakshmi-k-96682a36b/)
+* 💻 GitHub: [https://github.com/mahalakshmi-005](https://github.com/mahalakshmi-005)
 
 ---
 
 ## 📄 License
 
-This project is open source and available under the **MIT License**.
+This project is licensed under the MIT License.
 
 ---
 
 <p align="center">
-  Made with ❤️ by <strong>Mahalakshmi K</strong> | Full Stack Developer
+  Made with ❤️ by <strong>Mahalakshmi K</strong>
 </p>
 ```
