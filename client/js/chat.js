@@ -864,13 +864,21 @@ function appendMessage(msg, type) {
     e.preventDefault();
     showContextMenu(e, bubble, msg, isMe);
   });
-  bubble.addEventListener('touchstart', e => {
-    pressTimer = setTimeout(() => showContextMenu(e.touches[0], bubble, msg, isMe), 500);
-  }, { passive: true });
-  bubble.addEventListener('touchend',  () => clearTimeout(pressTimer));
-  bubble.addEventListener('touchmove', () => clearTimeout(pressTimer));
+ bubble.addEventListener('touchstart', e => {
+  const touch = e.touches[0];
+  const savedX = touch.clientX;
+  const savedY = touch.clientY;
 
-  lastGroup.appendChild(bubble);
+  pressTimer = setTimeout(() => {
+    showContextMenu({
+      clientX: savedX,
+      clientY: savedY
+    }, bubble, msg, isMe);
+  }, 600);
+}, { passive: true });
+
+bubble.addEventListener('touchend', () => clearTimeout(pressTimer));
+bubble.addEventListener('touchmove', () => clearTimeout(pressTimer));
 }
 
 function tickSVG(status) {
@@ -949,8 +957,9 @@ function showContextMenu(e, bubble, msg, isMe) {
 
   const x = e.clientX ?? e.pageX;
   const y = e.clientY ?? e.pageY;
-  contextMenu.style.left = Math.min(x, window.innerWidth  - 160) + 'px';
-  contextMenu.style.top  = Math.min(y, window.innerHeight - 120) + 'px';
+ contextMenu.style.position = 'fixed';
+contextMenu.style.left = Math.min(x, window.innerWidth - 160) + 'px';
+contextMenu.style.top = Math.min(y + 10, window.innerHeight - 150) + 'px';
 }
 
 function hideContextMenu() { contextMenu.classList.add('hidden'); }
