@@ -1,11 +1,10 @@
 // ════════════════════════════════════════
-//  AuraTalk v4 — Privacy Edition (FINAL)
-//  ✅ Connect Request System
-//  ✅ Delete fixed (no re-appear on refresh)
-//  ✅ Block / Disconnect
-//  ✅ Public Alias / DM Privacy
+//  AuraTalk v4 — FINAL FIXED
+//  ✅ Message Send/Image/Emoji working
+//  ✅ Delete permanent (no re-appear)
 //  ✅ Forward Messages
 //  ✅ Seen Ticks
+//  ✅ Mobile long-press context menu
 // ════════════════════════════════════════
 
 (() => {
@@ -60,12 +59,12 @@ let onlineSet       = new Set();
 let unread          = {};
 let typingTimer     = null;
 let selectedImage   = null;
-let viewingUser     = null;   // full user object currently viewed
+let viewingUser     = null;
 let pendingRequests = [];
 let forwardingMsg   = null;
 let forwardSelUid   = null;
 
-// ─── DOM helpers ──────────────────────────
+// ─── DOM ──────────────────────────────────
 const $  = id => document.getElementById(id);
 const messagesArea     = $('messagesArea');
 const messageInput     = $('messageInput');
@@ -81,7 +80,7 @@ const previewLabel     = $('previewLabel');
 const emojiPicker      = $('emojiPicker');
 const contextMenu      = $('contextMenu');
 
-// ─── Forward Modal (create if absent) ─────
+// ─── Forward Modal ────────────────────────
 let forwardModal = $('forwardModal');
 if (!forwardModal) {
   forwardModal = document.createElement('div');
@@ -109,7 +108,7 @@ if (!forwardModal) {
   document.body.appendChild(forwardModal);
 }
 
-// ─── My profile UI ────────────────────────
+// ─── My Profile UI ────────────────────────
 function initMyProfile() {
   const av = localStorage.getItem('avatar') || '';
   const ab = localStorage.getItem('about')  || 'Hey there! I am using AuraTalk.';
@@ -178,10 +177,6 @@ socket.on('privateMessage', msg => {
   }
 });
 
-socket.on('dmBlocked', () => {
-  showToastSimple('🔒 Connect with this person first to send messages');
-});
-
 socket.on('messagesSeen', ({ by, from }) => {
   if (String(from) !== String(userId)) return;
   document.querySelectorAll('.msg-ticks').forEach(el => {
@@ -189,29 +184,33 @@ socket.on('messagesSeen', ({ by, from }) => {
   });
 });
 
-// ─── DELETE FIX: server emits msgId only, client removes bubble ───
+// ─── DELETE: permanent, no re-appear ──────
 socket.on('messageDeleted', ({ msgId }) => {
   if (!msgId) return;
-  const el = document.querySelector(`[data-msgid="${CSS.escape(msgId)}"]`);
+  // Try both with and without CSS.escape for safety
+  let el = document.querySelector(`[data-msgid="${msgId}"]`);
+  if (!el) {
+    try { el = document.querySelector(`[data-msgid="${CSS.escape(msgId)}"]`); } catch {}
+  }
   if (el) {
-    // Clear all event listeners by replacing node
     const replacement = document.createElement('div');
-    replacement.className        = 'msg-bubble';
-    replacement.dataset.msgid    = msgId;
-    replacement.dataset.deleted  = '1';
-    replacement.style.opacity    = '.55';
-    replacement.style.cursor     = 'default';
-    replacement.innerHTML        = '<em style="font-size:.8rem">🚫 Message deleted</em>';
+    replacement.className       = 'msg-bubble';
+    replacement.dataset.msgid   = msgId;
+    replacement.dataset.deleted = '1';
+    replacement.style.opacity   = '.5';
+    replacement.style.cursor    = 'default';
+    replacement.style.fontStyle = 'italic';
+    replacement.style.fontSize  = '.8rem';
+    replacement.textContent     = '🚫 Message deleted';
     el.replaceWith(replacement);
   }
 });
 
 socket.on('connectRequestReceived', ({ requestId, fromId, fromName, fromAvatar, note }) => {
-  // Avoid duplicates
   if (!pendingRequests.find(r => r._id === requestId)) {
     pendingRequests.unshift({
-      _id:     requestId,
-      from:    { _id: fromId, username: fromName, avatar: fromAvatar },
+      _id: requestId,
+      from: { _id: fromId, username: fromName, avatar: fromAvatar },
       message: note || ''
     });
     updateRequestsBadge();
@@ -221,13 +220,10 @@ socket.on('connectRequestReceived', ({ requestId, fromId, fromName, fromAvatar, 
 });
 
 socket.on('connectResponseReceived', ({ accepted, fromName }) => {
-  if (accepted) {
-    showToastSimple(`✅ ${escHtml(fromName)} accepted your request!`);
-    loadUsers();
-  } else {
-    showToastSimple(`❌ ${escHtml(fromName)} declined your request`);
-    loadUsers();
-  }
+  showToastSimple(accepted
+    ? `✅ ${escHtml(fromName)} accepted your request!`
+    : `❌ ${escHtml(fromName)} declined your request`);
+  loadUsers();
 });
 
 socket.on('userTyping', ({ username: who, chatId }) => {
@@ -264,11 +260,6 @@ async function loadUsers() {
     if (!Array.isArray(data)) return;
     allUsers = data;
     renderUsers();
-    // Refresh viewingUser if modal is open
-    if (viewingUser) {
-      const updated = allUsers.find(u => String(u._id) === String(viewingUser._id));
-      if (updated) viewingUser = updated;
-    }
   } catch (e) { console.error('loadUsers:', e); }
 }
 
@@ -280,7 +271,7 @@ async function loadRequests() {
     if (!res.ok) return;
     pendingRequests = await res.json();
     updateRequestsBadge();
-  } catch (e) {}
+  } catch {}
 }
 
 function updateRequestsBadge() {
@@ -308,7 +299,7 @@ async function loadPrivateMessages(otherId) {
     });
     if (res.status === 403) {
       clearMessages();
-      showChatPlaceholder('🔒 You need to connect first before chatting privately');
+      showChatPlaceholder('🔒 Connect first before chatting privately');
       return;
     }
     const msgs = await res.json();
@@ -320,12 +311,11 @@ async function loadPrivateMessages(otherId) {
 }
 
 // ════════════════════════════════════════
-//  RENDER USERS  — Contacts / Discover
+//  RENDER USERS
 // ════════════════════════════════════════
 
 function renderUsers() {
   const q = ($('searchInput').value || '').trim().toLowerCase();
-
   let list = allUsers.filter(u => {
     if (String(u._id) === String(userId)) return false;
     if (q) return u.username.toLowerCase().includes(q);
@@ -348,31 +338,24 @@ function renderUsers() {
   const discover = list.filter(u => u.connectionStatus !== 'connected').sort(sortFn);
 
   let html = '';
-
   if (contacts.length) {
     html += `<div class="users-section-head">💬 Contacts (${contacts.length})</div>`;
     html += contacts.map(u => userItemHtml(u)).join('');
   }
-
   if (discover.length) {
     html += `<div class="users-section-head" style="margin-top:${contacts.length ? '6px' : '0'}">👥 Discover People</div>`;
     html += discover.map(u => userItemHtml(u)).join('');
   }
 
   usersList.innerHTML = html;
-
   usersList.querySelectorAll('.user-item').forEach(el => {
     el.addEventListener('click', () => {
-      const uid    = el.dataset.id;
-      const status = el.dataset.status;
-      const user   = allUsers.find(u => String(u._id) === uid);
+      const uid  = el.dataset.id;
+      const st   = el.dataset.status;
+      const user = allUsers.find(u => String(u._id) === uid);
       if (!user) return;
-
-      if (status === 'connected') {
-        openPrivateChat(uid, user.username);
-      } else {
-        openUserActionModal(user);
-      }
+      if (st === 'connected') openPrivateChat(uid, user.username);
+      else openUserActionModal(user);
     });
   });
 }
@@ -385,23 +368,13 @@ function userItemHtml(user) {
   const av     = user.avatar
     ? `<img src="${user.avatar}" alt=""/>`
     : user.username.charAt(0).toUpperCase();
-
   const st = user.connectionStatus;
-  let lockIcon = '';
-  let subText  = online ? '● Online' : 'Offline';
-
-  if (st === 'pending_sent') {
-    lockIcon = ' ⏳';
-    subText  = '<span style="font-size:.63rem;background:var(--glass-strong);color:var(--text-2);padding:2px 6px;border-radius:6px">Request Sent</span>';
-  } else if (st === 'pending_received') {
-    lockIcon = ' 🔔';
-    subText  = '<span style="font-size:.63rem;background:var(--accent-dim);color:var(--accent);padding:2px 6px;border-radius:6px;font-weight:700;animation:pulseBadge 2s infinite">Respond ↩</span>';
-  } else if (st === 'none') {
-    lockIcon = ' 🔒';
-  }
-
+  let lockIcon = '', subText = online ? '● Online' : 'Offline';
+  if (st === 'pending_sent')     { lockIcon = ' ⏳'; subText = '<span style="font-size:.63rem;background:var(--glass-strong);color:var(--text-2);padding:2px 6px;border-radius:6px">Request Sent</span>'; }
+  else if (st === 'pending_received') { lockIcon = ' 🔔'; subText = '<span style="font-size:.63rem;background:var(--accent-dim);color:var(--accent);padding:2px 6px;border-radius:6px;font-weight:700">Respond ↩</span>'; }
+  else if (st === 'none')        { lockIcon = ' 🔒'; }
   return `
-    <div class="user-item ${active}" data-id="${uid}" data-status="${st}" style="cursor:pointer">
+    <div class="user-item ${active}" data-id="${uid}" data-status="${st}">
       <div class="user-avatar-wrap">
         <div class="user-avatar">${av}</div>
         <span class="user-status-dot ${online ? 'online' : ''}"></span>
@@ -410,360 +383,226 @@ function userItemHtml(user) {
         <div class="user-name">${escHtml(user.username)}<span style="font-size:.72rem;opacity:.7">${lockIcon}</span></div>
         <div class="user-last-msg">${subText}</div>
       </div>
-      <div class="user-meta">
-        ${badge ? `<div class="user-badge">${badge}</div>` : ''}
-      </div>
+      <div class="user-meta">${badge ? `<div class="user-badge">${badge}</div>` : ''}</div>
     </div>`;
 }
 
 // ════════════════════════════════════════
 //  USER ACTION MODAL
-//  (Connect / Accept / Chat / Disconnect / Block)
 // ════════════════════════════════════════
 
 function openUserActionModal(user) {
   if (!user) return;
   viewingUser = user;
-
   const uid    = String(user._id);
   const online = onlineSet.has(uid);
   const status = user.connectionStatus;
 
-  // Header
   $('userActionTitle').textContent = user.username;
-
-  // Avatar
   const av = $('uaAvatar');
   if (user.avatar) { av.innerHTML = `<img src="${user.avatar}" alt=""/>`; }
-  else { av.textContent = user.username.charAt(0).toUpperCase(); av.innerHTML = av.textContent; }
+  else { av.textContent = user.username.charAt(0).toUpperCase(); }
 
-  // Online badge
   const badge = $('uaOnlineBadge');
   badge.textContent = online ? '● Online' : '● Offline';
   badge.className   = `profile-online-badge ${online ? 'online' : 'offline'}`;
-
   $('uaUsername').textContent = user.username;
   $('uaAbout').textContent    = user.about || 'Hey there! I am using AuraTalk.';
 
-  // ─── Connect Section (dynamic per status) ─
   const cs = $('uaConnectSection');
   cs.innerHTML = '';
 
   if (status === 'none') {
-    // Show connect request form
     cs.innerHTML = `
-      <input id="connectNoteInput" type="text" maxlength="100"
-        placeholder="Add a note (optional)..."
-        class="ua-connect-note"/>
+      <input id="connectNoteInput" type="text" maxlength="100" placeholder="Add a note (optional)..."
+        style="width:100%;padding:8px 12px;border-radius:8px;border:1px solid var(--border);
+        background:var(--glass-strong);color:var(--text-1);font-size:.85rem;outline:none;
+        box-sizing:border-box;margin-bottom:8px"/>
       <button id="sendConnectBtn" class="auth-btn">🔗 Send Connect Request</button>`;
-
     $('sendConnectBtn').addEventListener('click', () => {
-      const note = ($('connectNoteInput') ? $('connectNoteInput').value.trim() : '');
+      const note = $('connectNoteInput') ? $('connectNoteInput').value.trim() : '';
       sendConnectRequest(uid, user.username, user.avatar || '', note);
     });
-
   } else if (status === 'pending_sent') {
-    cs.innerHTML = `
-      <div class="ua-status-box">
-        ⏳ Connect request sent<br/>
-        <span style="font-size:.78rem;color:var(--text-3)">Waiting for ${escHtml(user.username)} to respond</span>
-      </div>`;
-
+    cs.innerHTML = `<div class="ua-status-box" style="text-align:center;padding:12px;background:var(--glass-strong);border-radius:10px;color:var(--text-2);font-size:.85rem">⏳ Connect request sent<br/><span style="font-size:.75rem;color:var(--text-3)">Waiting for ${escHtml(user.username)} to respond</span></div>`;
   } else if (status === 'pending_received') {
-    // Find request details
-    const req  = pendingRequests.find(r => String(r.from._id) === uid)
-               || { _id: user.pendingRequestId, message: '' };
-    const note = req.message
-      ? `<div style="font-style:italic;font-size:.82rem;color:var(--text-2);margin-bottom:10px;padding:8px;background:var(--glass-strong);border-radius:8px">"${escHtml(req.message)}"</div>`
-      : '';
-
+    const req  = pendingRequests.find(r => String(r.from._id) === uid) || { _id: user.pendingRequestId, message: '' };
+    const note = req.message ? `<div style="font-style:italic;font-size:.82rem;color:var(--text-2);margin-bottom:10px;padding:8px;background:var(--glass-strong);border-radius:8px">"${escHtml(req.message)}"</div>` : '';
     cs.innerHTML = `
       ${note}
-      <p style="font-size:.82rem;color:var(--text-2);margin-bottom:10px;text-align:center">
-        <strong>${escHtml(user.username)}</strong> wants to connect with you
-      </p>
+      <p style="font-size:.82rem;color:var(--text-2);margin-bottom:10px;text-align:center"><strong>${escHtml(user.username)}</strong> wants to connect with you</p>
       <div style="display:flex;gap:8px">
         <button id="acceptReqBtn" class="auth-btn" style="flex:1">✅ Accept</button>
         <button id="rejectReqBtn" class="danger-btn" style="flex:1">❌ Decline</button>
       </div>`;
-
-    $('acceptReqBtn').addEventListener('click', () => {
-      respondRequest(req._id || user.pendingRequestId, 'accept', uid, user.username);
-    });
-    $('rejectReqBtn').addEventListener('click', () => {
-      respondRequest(req._id || user.pendingRequestId, 'reject', uid, user.username);
-    });
-
+    $('acceptReqBtn').addEventListener('click', () => respondRequest(req._id || user.pendingRequestId, 'accept', uid, user.username));
+    $('rejectReqBtn').addEventListener('click', () => respondRequest(req._id || user.pendingRequestId, 'reject', uid, user.username));
   } else if (status === 'connected') {
     cs.innerHTML = `
       <button id="chatNowBtn" class="auth-btn">💬 Open Chat</button>
       <button id="disconnectBtn" class="danger-btn" style="margin-top:8px">🔗 Disconnect</button>`;
-
-    $('chatNowBtn').addEventListener('click', () => {
-      $('userActionModal').classList.add('hidden');
-      openPrivateChat(uid, user.username);
-    });
+    $('chatNowBtn').addEventListener('click', () => { $('userActionModal').classList.add('hidden'); openPrivateChat(uid, user.username); });
     $('disconnectBtn').addEventListener('click', () => disconnectUser(uid, user.username));
   }
 
-  // Block button always visible
   $('uaBlockBtn').onclick = () => blockUser(uid, user.username);
-
   $('userActionModal').classList.remove('hidden');
 }
 
-// ─── Send Connect Request ─────────────────
 async function sendConnectRequest(toId, toName, toAvatar, note) {
   const btn = $('sendConnectBtn');
   if (btn) { btn.disabled = true; btn.textContent = 'Sending...'; }
-
   try {
     const res = await fetch(`/api/auth/connect/request/${toId}`, {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body:    JSON.stringify({ message: note })
+      method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ message: note })
     });
     const data = await res.json();
-
-    if (!res.ok) {
-      showToastSimple('❌ ' + (data.error || 'Failed to send request'));
-      if (btn) { btn.disabled = false; btn.textContent = '🔗 Send Connect Request'; }
-      return;
-    }
-
-    // Notify target user via socket in real-time
-    socket.emit('connectRequest', {
-      toId,
-      fromName:   username,
-      fromAvatar: localStorage.getItem('avatar') || '',
-      requestId:  data.requestId || '',
-      note
-    });
-
-    if (data.status === 'auto_accepted') {
-      showToastSimple('✅ You are now connected!');
-    } else {
-      showToastSimple(`✅ Connect request sent to ${escHtml(toName)}`);
-    }
-
+    if (!res.ok) { showToastSimple('❌ ' + (data.error || 'Failed')); if (btn) { btn.disabled = false; btn.textContent = '🔗 Send Connect Request'; } return; }
+    socket.emit('connectRequest', { toId, fromName: username, fromAvatar: localStorage.getItem('avatar') || '', requestId: data.requestId || '', note });
+    showToastSimple(data.status === 'auto_accepted' ? '✅ Connected!' : `✅ Request sent to ${escHtml(toName)}`);
     $('userActionModal').classList.add('hidden');
     await loadUsers();
-  } catch (e) {
-    showToastSimple('❌ Network error. Try again.');
-    if (btn) { btn.disabled = false; btn.textContent = '🔗 Send Connect Request'; }
-  }
+  } catch { showToastSimple('❌ Network error'); if (btn) { btn.disabled = false; btn.textContent = '🔗 Send Connect Request'; } }
 }
 
-// ─── Accept / Reject request ──────────────
 async function respondRequest(requestId, action, fromId, fromName) {
   if (!requestId) {
-    // requestId not found — reload requests and try again
     await loadRequests();
     const req = pendingRequests.find(r => String(r.from._id) === String(fromId));
     if (req) requestId = req._id;
-    else { showToastSimple('❌ Request not found, please refresh'); return; }
+    else { showToastSimple('❌ Request not found'); return; }
   }
-
   try {
     const res = await fetch(`/api/auth/connect/${requestId}/${action}`, {
-      method:  'PUT',
-      headers: { Authorization: `Bearer ${token}` }
+      method: 'PUT', headers: { Authorization: `Bearer ${token}` }
     });
-    if (!res.ok) {
-      const d = await res.json();
-      showToastSimple('❌ ' + (d.error || 'Failed'));
-      return;
-    }
-
-    // Remove from pending list
+    if (!res.ok) { const d = await res.json(); showToastSimple('❌ ' + (d.error || 'Failed')); return; }
     pendingRequests = pendingRequests.filter(r => r._id !== requestId);
     updateRequestsBadge();
-
-    // Notify sender
-    socket.emit('connectResponse', {
-      toId:     fromId,
-      accepted: action === 'accept',
-      fromName: username
-    });
-
-    showToastSimple(action === 'accept'
-      ? `✅ Connected with ${escHtml(fromName)}!`
-      : `Request from ${escHtml(fromName)} declined`);
-
+    socket.emit('connectResponse', { toId: fromId, accepted: action === 'accept', fromName: username });
+    showToastSimple(action === 'accept' ? `✅ Connected with ${escHtml(fromName)}!` : `Request declined`);
     $('userActionModal').classList.add('hidden');
     $('requestsModal').classList.add('hidden');
-
     await loadUsers();
-
-    if (action === 'accept') {
-      setTimeout(() => openPrivateChat(fromId, fromName), 400);
-    }
-  } catch (e) { showToastSimple('❌ Network error'); }
+    if (action === 'accept') setTimeout(() => openPrivateChat(fromId, fromName), 400);
+  } catch { showToastSimple('❌ Network error'); }
 }
 
-// ─── Disconnect ───────────────────────────
 async function disconnectUser(otherId, otherName) {
-  if (!confirm(`Remove ${otherName} from your contacts?`)) return;
+  if (!confirm(`Remove ${otherName} from contacts?`)) return;
   try {
-    await fetch(`/api/auth/connect/${otherId}`, {
-      method:  'DELETE',
-      headers: { Authorization: `Bearer ${token}` }
-    });
+    await fetch(`/api/auth/connect/${otherId}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
     showToastSimple(`🔗 Disconnected from ${escHtml(otherName)}`);
     $('userActionModal').classList.add('hidden');
     if (currentChat === otherId) openPublicChat();
     await loadUsers();
-  } catch (e) { showToastSimple('❌ Network error'); }
+  } catch { showToastSimple('❌ Network error'); }
 }
 
-// ─── Block ────────────────────────────────
 async function blockUser(otherId, otherName) {
-  if (!confirm(`Block ${otherName}?\nThey won't be able to connect or message you.`)) return;
+  if (!confirm(`Block ${otherName}?`)) return;
   try {
-    await fetch(`/api/auth/block/${otherId}`, {
-      method:  'POST',
-      headers: { Authorization: `Bearer ${token}` }
-    });
+    await fetch(`/api/auth/block/${otherId}`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
     showToastSimple(`🚫 ${escHtml(otherName)} blocked`);
     $('userActionModal').classList.add('hidden');
     if (currentChat === otherId) openPublicChat();
     await loadUsers();
-  } catch (e) { showToastSimple('❌ Network error'); }
+  } catch { showToastSimple('❌ Network error'); }
 }
 
-// ─── Requests Inbox Modal ─────────────────
+// ─── Requests Modal ───────────────────────
 if ($('requestsInboxBtn')) {
   $('requestsInboxBtn').addEventListener('click', () => {
     renderRequestsList();
     $('requestsModal').classList.remove('hidden');
   });
 }
-if ($('closeRequestsModal')) {
-  $('closeRequestsModal').addEventListener('click', () =>
-    $('requestsModal').classList.add('hidden'));
-}
-if ($('requestsModal')) {
-  $('requestsModal').addEventListener('click', e => {
-    if (e.target === $('requestsModal')) $('requestsModal').classList.add('hidden');
-  });
-}
+if ($('closeRequestsModal'))
+  $('closeRequestsModal').addEventListener('click', () => $('requestsModal').classList.add('hidden'));
+if ($('requestsModal'))
+  $('requestsModal').addEventListener('click', e => { if (e.target === $('requestsModal')) $('requestsModal').classList.add('hidden'); });
 
 function renderRequestsList() {
   const container = $('requestsList');
   if (!container) return;
-
   if (!pendingRequests.length) {
-    container.innerHTML = `
-      <div class="requests-empty">
-        <div class="requests-empty-icon">✅</div>
-        No pending requests
-      </div>`;
+    container.innerHTML = `<div style="padding:32px;text-align:center;color:var(--text-2);font-size:.9rem">✅ No pending requests</div>`;
     return;
   }
-
   container.innerHTML = pendingRequests.map(req => {
     const u  = req.from;
     const av = u.avatar
       ? `<img src="${u.avatar}" style="width:42px;height:42px;border-radius:50%;object-fit:cover"/>`
       : `<div style="width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent-dark));color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:1rem">${u.username.charAt(0).toUpperCase()}</div>`;
-    const note = req.message
-      ? `<div class="request-note">"${escHtml(req.message)}"</div>` : '';
-
+    const note = req.message ? `<div style="font-size:.78rem;color:var(--text-3);font-style:italic;margin-top:3px">"${escHtml(req.message)}"</div>` : '';
     return `
-      <div class="request-item">
-        <div class="request-av">${av}</div>
-        <div class="request-info">
-          <div class="request-name">${escHtml(u.username)}</div>
+      <div style="display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--border)">
+        <div style="flex-shrink:0">${av}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:700;font-size:.9rem">${escHtml(u.username)}</div>
           ${note}
         </div>
-        <div class="request-actions">
-          <button class="req-accept-btn" onclick="window._reqAccept('${req._id}','${u._id}','${escHtml(u.username)}')">✅</button>
-          <button class="req-reject-btn" onclick="window._reqReject('${req._id}','${u._id}','${escHtml(u.username)}')">❌</button>
+        <div style="display:flex;gap:6px">
+          <button onclick="window._reqAccept('${req._id}','${u._id}','${escHtml(u.username)}')"
+            style="background:var(--accent);color:#fff;border:none;padding:6px 12px;border-radius:8px;cursor:pointer;font-size:.8rem;font-weight:600">✅</button>
+          <button onclick="window._reqReject('${req._id}','${u._id}','${escHtml(u.username)}')"
+            style="background:var(--danger-dim);color:var(--danger);border:1px solid rgba(239,68,68,.2);padding:6px 12px;border-radius:8px;cursor:pointer;font-size:.8rem;font-weight:600">❌</button>
         </div>
       </div>`;
   }).join('');
 }
-
-// Global handlers for inline onclick in requests list
 window._reqAccept = (rid, fid, fn) => respondRequest(rid, 'accept', fid, fn);
 window._reqReject = (rid, fid, fn) => respondRequest(rid, 'reject', fid, fn);
 
-// User Action Modal close
-if ($('closeUserActionModal')) {
-  $('closeUserActionModal').addEventListener('click', () =>
-    $('userActionModal').classList.add('hidden'));
-}
-if ($('userActionModal')) {
-  $('userActionModal').addEventListener('click', e => {
-    if (e.target === $('userActionModal')) $('userActionModal').classList.add('hidden');
-  });
-}
+if ($('closeUserActionModal'))
+  $('closeUserActionModal').addEventListener('click', () => $('userActionModal').classList.add('hidden'));
+if ($('userActionModal'))
+  $('userActionModal').addEventListener('click', e => { if (e.target === $('userActionModal')) $('userActionModal').classList.add('hidden'); });
 
 // ════════════════════════════════════════
 //  OPEN CHATS
 // ════════════════════════════════════════
 
 function openPublicChat() {
-  currentChat     = 'public';
-  currentChatName = 'General Chat';
-
+  currentChat = 'public'; currentChatName = 'General Chat';
   document.querySelectorAll('.user-item').forEach(e => e.classList.remove('active'));
   $('publicRoomBtn').classList.add('active');
-
   $('chatHeaderName').textContent   = 'General Chat';
   $('chatHeaderStatus').textContent = 'Public room · everyone can chat';
   $('chatHeaderStatus').style.color = '';
-
   const av = $('chatAvatarHeader');
-  av.textContent = '🌍';
-  av.style.background = 'transparent';
-
+  av.textContent = '🌍'; av.style.background = 'transparent';
   $('viewProfileBtn').classList.add('hidden');
   viewingUser = null;
-
-  const pb = $('publicBadge');
-  pb.textContent = '0';
-  pb.classList.add('hidden');
-
+  const pb = $('publicBadge'); pb.textContent = '0'; pb.classList.add('hidden');
   loadPublicMessages();
   showChatOnMobile();
 }
 
 function openPrivateChat(uid, name) {
-  currentChat     = String(uid);
-  currentChatName = name;
-
+  currentChat = String(uid); currentChatName = name;
   document.querySelectorAll('.user-item').forEach(e => e.classList.remove('active'));
   $('publicRoomBtn').classList.remove('active');
-
   const el = usersList.querySelector(`[data-id="${uid}"]`);
   if (el) el.classList.add('active');
-
   $('chatHeaderName').textContent = name;
   const on = onlineSet.has(String(uid));
   $('chatHeaderStatus').textContent = on ? '● Online' : '● Offline';
   $('chatHeaderStatus').style.color = on ? 'var(--accent)' : '';
   $('viewProfileBtn').classList.remove('hidden');
-
   const user = allUsers.find(u => String(u._id) === String(uid));
   if (user) { viewingUser = user; updateChatAvatarHeader(user); }
-
   delete unread[String(uid)];
   renderUsers();
-
   loadPrivateMessages(uid);
   showChatOnMobile();
 }
 
 function updateChatAvatarHeader(user) {
   const av = $('chatAvatarHeader');
-  if (user.avatar) {
-    av.innerHTML        = `<img src="${user.avatar}" alt=""/>`;
-    av.style.background = 'transparent';
-  } else {
-    av.textContent      = user.username.charAt(0).toUpperCase();
-    av.style.background = '';
-  }
+  if (user.avatar) { av.innerHTML = `<img src="${user.avatar}" alt=""/>`; av.style.background = 'transparent'; }
+  else { av.textContent = user.username.charAt(0).toUpperCase(); av.style.background = ''; }
 }
 
 function showChatPlaceholder(msg) {
@@ -796,7 +635,7 @@ function appendMessage(msg, type) {
   const status   = msg.status     || 'sent';
   const ts       = new Date(msg.createdAt || Date.now());
   const timeStr  = ts.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  const dateStr  = ts.toLocaleDateString([],  { day: 'numeric', month: 'short', year: 'numeric' });
+  const dateStr  = ts.toLocaleDateString([], { day: 'numeric', month: 'short', year: 'numeric' });
 
   // Date separator
   if (dateStr !== lastDate) {
@@ -813,7 +652,7 @@ function appendMessage(msg, type) {
     lastGroup.className = `msg-group ${type}`;
     if (!isMe && currentChat === 'public') {
       const nm = document.createElement('div');
-      nm.className   = 'msg-sender-name';
+      nm.className = 'msg-sender-name';
       nm.textContent = senderNm;
       lastGroup.appendChild(nm);
     }
@@ -830,8 +669,8 @@ function appendMessage(msg, type) {
   // Forwarded label
   if (msg.forwarded) {
     const fl = document.createElement('div');
-    fl.className   = 'msg-forwarded-label';
-    fl.textContent = '↪ Forwarded';
+    fl.style.cssText = 'font-size:.7rem;opacity:.7;margin-bottom:3px';
+    fl.textContent   = '↪ Forwarded';
     bubble.appendChild(fl);
   }
 
@@ -845,12 +684,11 @@ function appendMessage(msg, type) {
     bubble.appendChild(imgEl);
   } else {
     const t = document.createElement('span');
-    t.className   = 'msg-text';
     t.textContent = content;
     bubble.appendChild(t);
   }
 
-  // Meta (time + ticks)
+  // Meta: time + ticks
   const meta = document.createElement('div');
   meta.className = 'msg-meta';
   meta.innerHTML = `
@@ -858,34 +696,33 @@ function appendMessage(msg, type) {
     ${isMe ? `<span class="msg-ticks">${tickSVG(status)}</span>` : ''}`;
   bubble.appendChild(meta);
 
-  // Context menu (right-click / long-press)
+  // ─── Context menu — right click + mobile long press ───
   let pressTimer;
+
   bubble.addEventListener('contextmenu', e => {
     e.preventDefault();
     showContextMenu(e, bubble, msg, isMe);
   });
- bubble.addEventListener('touchstart', e => {
-  const touch = e.touches[0];
-  const savedX = touch.clientX;
-  const savedY = touch.clientY;
 
-  pressTimer = setTimeout(() => {
-    showContextMenu({
-      clientX: savedX,
-      clientY: savedY
-    }, bubble, msg, isMe);
-  }, 600);
-}, { passive: true });
+  bubble.addEventListener('touchstart', e => {
+    const touch  = e.touches[0];
+    const savedX = touch.clientX;
+    const savedY = touch.clientY;
+    pressTimer = setTimeout(() => {
+      showContextMenu({ clientX: savedX, clientY: savedY }, bubble, msg, isMe);
+    }, 600);
+  }, { passive: true });
 
-bubble.addEventListener('touchend', () => clearTimeout(pressTimer));
-bubble.addEventListener('touchmove', () => clearTimeout(pressTimer));
-}
+  bubble.addEventListener('touchend',  () => clearTimeout(pressTimer));
+  bubble.addEventListener('touchmove', () => clearTimeout(pressTimer));
+
+  lastGroup.appendChild(bubble);
+} // ← THIS closing brace was missing before — now fixed!
 
 function tickSVG(status) {
   if (status === 'sent') {
     return `<svg class="tick-sent" viewBox="0 0 16 10"><path d="M1 5l4 4L15 1" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
   }
-  // delivered or seen
   const cls = status === 'seen' ? 'tick-seen' : 'tick-delivered';
   return `<svg class="${cls}" viewBox="0 0 20 10">
     <path d="M1 5l4 4L15 1" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
@@ -925,23 +762,19 @@ function showContextMenu(e, bubble, msg, isMe) {
       const chatType   = currentChat === 'public' ? 'public' : 'private';
       const receiverId = currentChat === 'public' ? '' : String(currentChat);
 
-      // Optimistic UI update immediately
+      // Optimistic UI — replace immediately
       const replacement = document.createElement('div');
       replacement.className       = 'msg-bubble';
       replacement.dataset.msgid   = msgId;
       replacement.dataset.deleted = '1';
-      replacement.style.opacity   = '.55';
+      replacement.style.opacity   = '.5';
       replacement.style.cursor    = 'default';
-      replacement.innerHTML       = '<em style="font-size:.8rem">🚫 Message deleted</em>';
+      replacement.style.fontStyle = 'italic';
+      replacement.style.fontSize  = '.8rem';
+      replacement.textContent     = '🚫 Message deleted';
       bubble.replaceWith(replacement);
 
-      // Tell server to delete from DB and notify others
-      socket.emit('deleteMessage', {
-        msgId,
-        type:       chatType,
-        senderId:   String(userId),
-        receiverId
-      });
+      socket.emit('deleteMessage', { msgId, type: chatType, senderId: String(userId), receiverId });
     }});
   }
 
@@ -955,11 +788,11 @@ function showContextMenu(e, bubble, msg, isMe) {
     contextMenu.appendChild(div);
   });
 
-  const x = e.clientX ?? e.pageX;
-  const y = e.clientY ?? e.pageY;
- contextMenu.style.position = 'fixed';
-contextMenu.style.left = Math.min(x, window.innerWidth - 160) + 'px';
-contextMenu.style.top = Math.min(y + 10, window.innerHeight - 150) + 'px';
+  const x = e.clientX !== undefined ? e.clientX : (e.pageX || window.innerWidth / 2);
+  const y = e.clientY !== undefined ? e.clientY : (e.pageY || window.innerHeight / 2);
+  contextMenu.style.position = 'fixed';
+  contextMenu.style.left     = Math.min(x, window.innerWidth  - 160) + 'px';
+  contextMenu.style.top      = Math.min(y + 10, window.innerHeight - 150) + 'px';
 }
 
 function hideContextMenu() { contextMenu.classList.add('hidden'); }
@@ -971,19 +804,12 @@ document.addEventListener('touchstart', hideContextMenu, { passive: true });
 // ════════════════════════════════════════
 
 function openForwardModal(msg) {
-  forwardingMsg = msg;
-  forwardSelUid = null;
-
+  forwardingMsg = msg; forwardSelUid = null;
   const prev = $('forwardPreview');
-  if (msg.imageData) {
-    prev.innerHTML = `<img src="${msg.imageData}" style="max-height:45px;border-radius:6px"/>`;
-  } else {
-    prev.textContent = (msg.content || '').slice(0, 80);
-  }
-
+  if (msg.imageData) prev.innerHTML = `<img src="${msg.imageData}" style="max-height:45px;border-radius:6px"/>`;
+  else prev.textContent = (msg.content || '').slice(0, 80);
   const btn = $('doForwardBtn');
   btn.disabled = true; btn.style.opacity = '.5'; btn.style.cursor = 'not-allowed';
-
   $('forwardSearch').value = '';
   renderForwardList('');
   forwardModal.classList.remove('hidden');
@@ -996,40 +822,35 @@ function renderForwardList(q) {
     if (q) return u.username.toLowerCase().includes(q.toLowerCase());
     return true;
   });
-
   const container = $('forwardUserList');
   const publicSel = forwardSelUid === 'public';
-
   let html = `
     <div class="forward-user-item ${publicSel ? 'selected' : ''}" data-fwd-id="public"
-      style="display:flex;align-items:center;gap:10px;padding:10px 16px;cursor:pointer">
+      style="display:flex;align-items:center;gap:10px;padding:10px 16px;cursor:pointer;transition:background .15s"
+      onmouseover="this.style.background='var(--hover)'" onmouseout="this.style.background=''">
       <div style="width:36px;height:36px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0">🌍</div>
-      <div style="flex:1;font-weight:500;font-size:.9rem">General Chat</div>
-      ${publicSel ? '<span style="color:var(--accent)">✓</span>' : ''}
+      <div style="flex:1;font-weight:500;font-size:.9rem;color:var(--text-1)">General Chat</div>
+      ${publicSel ? '<span style="color:var(--accent);font-weight:700">✓</span>' : ''}
     </div>`;
-
   contacts.forEach(user => {
     const uid = String(user._id);
     const sel = forwardSelUid === uid;
     const av  = user.avatar
       ? `<img src="${user.avatar}" style="width:36px;height:36px;border-radius:50%;object-fit:cover"/>`
       : `<div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent-dark));color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.9rem;flex-shrink:0">${user.username.charAt(0).toUpperCase()}</div>`;
-
     html += `
       <div class="forward-user-item ${sel ? 'selected' : ''}" data-fwd-id="${uid}"
-        style="display:flex;align-items:center;gap:10px;padding:10px 16px;cursor:pointer">
+        style="display:flex;align-items:center;gap:10px;padding:10px 16px;cursor:pointer;transition:background .15s"
+        onmouseover="this.style.background='var(--hover)'" onmouseout="this.style.background=''">
         <div style="flex-shrink:0">${av}</div>
-        <div style="flex:1;font-weight:500;font-size:.9rem">${escHtml(user.username)}</div>
-        ${sel ? '<span style="color:var(--accent)">✓</span>' : ''}
+        <div style="flex:1;font-weight:500;font-size:.9rem;color:var(--text-1)">${escHtml(user.username)}</div>
+        ${sel ? '<span style="color:var(--accent);font-weight:700">✓</span>' : ''}
       </div>`;
   });
-
   if (!contacts.length) {
-    html += `<div style="padding:20px;text-align:center;color:var(--text-2);font-size:.85rem">No contacts yet — connect with people first</div>`;
+    html += `<div style="padding:20px;text-align:center;color:var(--text-2);font-size:.85rem">No contacts yet</div>`;
   }
-
   container.innerHTML = html;
-
   container.querySelectorAll('.forward-user-item').forEach(el => {
     el.addEventListener('click', () => {
       forwardSelUid = el.dataset.fwdId;
@@ -1041,38 +862,22 @@ function renderForwardList(q) {
 }
 
 $('forwardSearch').addEventListener('input', e => renderForwardList(e.target.value.trim()));
-
-$('closeForwardModal').addEventListener('click', () => {
-  forwardModal.classList.add('hidden');
-  forwardingMsg = null; forwardSelUid = null;
-});
+$('closeForwardModal').addEventListener('click', () => { forwardModal.classList.add('hidden'); forwardingMsg = null; forwardSelUid = null; });
 forwardModal.addEventListener('click', e => {
-  if (e.target === forwardModal) {
-    forwardModal.classList.add('hidden');
-    forwardingMsg = null; forwardSelUid = null;
-  }
+  if (e.target === forwardModal) { forwardModal.classList.add('hidden'); forwardingMsg = null; forwardSelUid = null; }
 });
-
 $('doForwardBtn').addEventListener('click', () => {
   if (!forwardingMsg || !forwardSelUid) return;
-  const payload = {
-    message:   forwardingMsg.content   || '',
-    imageData: forwardingMsg.imageData || '',
-    imageType: forwardingMsg.imageType || '',
-    forwarded: true
-  };
+  const payload = { message: forwardingMsg.content || '', imageData: forwardingMsg.imageData || '', imageType: forwardingMsg.imageType || '', forwarded: true };
   if (forwardSelUid === 'public') {
     socket.emit('sendMessage', { userId, username, ...payload });
     showToastSimple('✅ Forwarded to General Chat');
   } else {
-    socket.emit('privateMessage', {
-      senderId: userId, senderName: username, receiverId: forwardSelUid, ...payload
-    });
+    socket.emit('privateMessage', { senderId: userId, senderName: username, receiverId: forwardSelUid, ...payload });
     const t = allUsers.find(u => String(u._id) === forwardSelUid);
     showToastSimple(`✅ Forwarded to ${t ? escHtml(t.username) : 'user'}`);
   }
-  forwardModal.classList.add('hidden');
-  forwardingMsg = null; forwardSelUid = null;
+  forwardModal.classList.add('hidden'); forwardingMsg = null; forwardSelUid = null;
 });
 
 // ════════════════════════════════════════
@@ -1084,11 +889,10 @@ function sendMessage() {
   if (!text && !selectedImage) return;
   if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
 
-  // Block DM to non-connected users
   if (currentChat !== 'public') {
     const user = allUsers.find(u => String(u._id) === currentChat);
     if (user && user.connectionStatus !== 'connected') {
-      showToastSimple('🔒 Connect with this person first to send messages');
+      showToastSimple('🔒 Connect with this person first');
       return;
     }
   }
@@ -1102,9 +906,7 @@ function sendMessage() {
   if (currentChat === 'public') {
     socket.emit('sendMessage', { userId, username, ...payload });
   } else {
-    socket.emit('privateMessage', {
-      senderId: userId, senderName: username, receiverId: currentChat, ...payload
-    });
+    socket.emit('privateMessage', { senderId: userId, senderName: username, receiverId: currentChat, ...payload });
   }
 
   messageInput.value = '';
@@ -1114,9 +916,7 @@ function sendMessage() {
 
 sendBtn.addEventListener('click', sendMessage);
 messageInput.addEventListener('keydown', e => {
-  if (e.key === 'Enter' && !e.shiftKey && enterSend) {
-    e.preventDefault(); sendMessage();
-  }
+  if (e.key === 'Enter' && !e.shiftKey && enterSend) { e.preventDefault(); sendMessage(); }
 });
 messageInput.addEventListener('input', () => {
   socket.emit('typing', { username, chatId: currentChat });
@@ -1150,7 +950,7 @@ function clearSelectedImage() {
 }
 
 // ════════════════════════════════════════
-//  EMOJI
+//  EMOJI PICKER
 // ════════════════════════════════════════
 
 const EMOJI_CATS = {
@@ -1171,9 +971,7 @@ function buildEmojiPicker() {
     const btn = document.createElement('button');
     btn.className   = `emoji-cat-tab${cat === currentEmojiCat ? ' active' : ''}`;
     btn.textContent = cat;
-    btn.addEventListener('click', e => {
-      e.stopPropagation(); currentEmojiCat = cat; buildEmojiPicker();
-    });
+    btn.addEventListener('click', e => { e.stopPropagation(); currentEmojiCat = cat; buildEmojiPicker(); });
     tabs.appendChild(btn);
   });
   const grid = document.createElement('div');
@@ -1182,9 +980,7 @@ function buildEmojiPicker() {
     const span = document.createElement('span');
     span.className   = 'emoji-btn-item';
     span.textContent = em;
-    span.addEventListener('click', e => {
-      e.stopPropagation(); messageInput.value += em; messageInput.focus();
-    });
+    span.addEventListener('click', e => { e.stopPropagation(); messageInput.value += em; messageInput.focus(); });
     grid.appendChild(span);
   });
   emojiPicker.innerHTML = '';
@@ -1207,11 +1003,9 @@ document.addEventListener('click', e => {
 
 function showToast(name, text, chatId) {
   const user = allUsers.find(u => u.username === name) || {};
-  const av   = user.avatar
-    ? `<img src="${user.avatar}" alt=""/>`
-    : name.charAt(0).toUpperCase();
-  const tc = $('toastContainer');
-  const t  = document.createElement('div');
+  const av   = user.avatar ? `<img src="${user.avatar}" alt=""/>` : name.charAt(0).toUpperCase();
+  const tc   = $('toastContainer');
+  const t    = document.createElement('div');
   t.className = 'toast';
   t.innerHTML = `
     <div class="toast-av">${av}</div>
@@ -1221,10 +1015,7 @@ function showToast(name, text, chatId) {
     </div>`;
   t.addEventListener('click', () => {
     if (chatId === 'public') openPublicChat();
-    else {
-      const u = allUsers.find(x => String(x._id) === chatId);
-      if (u) openPrivateChat(chatId, u.username);
-    }
+    else { const u = allUsers.find(x => String(x._id) === chatId); if (u) openPrivateChat(chatId, u.username); }
     t.remove();
   });
   tc.appendChild(t);
@@ -1246,9 +1037,7 @@ function showToastSimple(text) {
 
 function openLightbox(src) { $('lightboxImg').src = src; $('lightbox').classList.remove('hidden'); }
 $('lightboxClose').addEventListener('click', () => $('lightbox').classList.add('hidden'));
-$('lightbox').addEventListener('click', e => {
-  if (e.target === $('lightbox')) $('lightbox').classList.add('hidden');
-});
+$('lightbox').addEventListener('click', e => { if (e.target === $('lightbox')) $('lightbox').classList.add('hidden'); });
 
 // ════════════════════════════════════════
 //  PROFILE MODAL
@@ -1257,9 +1046,9 @@ $('lightbox').addEventListener('click', e => {
 function openProfileModal() {
   const av = localStorage.getItem('avatar') || '';
   const ab = localStorage.getItem('about')  || '';
-  $('profileUsername').value          = username;
-  $('profileAbout').value             = ab;
-  $('aboutCharCount').textContent     = ab.length;
+  $('profileUsername').value      = username;
+  $('profileAbout').value         = ab;
+  $('aboutCharCount').textContent = ab.length;
   const big = $('profileAvatarBig');
   big.innerHTML = av ? `<img src="${av}" alt=""/>` : '';
   if (!av) big.textContent = username.charAt(0).toUpperCase();
@@ -1272,7 +1061,6 @@ $('closeProfileModal').addEventListener('click', () => $('profileModal').classLi
 $('profileAbout').addEventListener('input', () => {
   $('aboutCharCount').textContent = $('profileAbout').value.length;
 });
-
 $('avatarInput').addEventListener('change', () => {
   const file = $('avatarInput').files[0];
   if (!file) return;
@@ -1281,18 +1069,15 @@ $('avatarInput').addEventListener('change', () => {
   reader.onload = e => { $('profileAvatarBig').innerHTML = `<img src="${e.target.result}" alt=""/>`; };
   reader.readAsDataURL(file);
 });
-
 $('saveProfileBtn').addEventListener('click', async () => {
   const about  = $('profileAbout').value.trim();
   const imgEl  = $('profileAvatarBig').querySelector('img');
   const avatar = imgEl ? imgEl.src : (localStorage.getItem('avatar') || '');
-  $('saveProfileBtn').textContent = 'Saving…';
-  $('saveProfileBtn').disabled    = true;
+  $('saveProfileBtn').textContent = 'Saving…'; $('saveProfileBtn').disabled = true;
   try {
     const res  = await fetch('/api/auth/profile', {
-      method:  'PUT',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body:    JSON.stringify({ about, avatar })
+      method: 'PUT', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ about, avatar })
     });
     if (!res.ok) throw new Error('Failed');
     const data = await res.json();
@@ -1302,16 +1087,10 @@ $('saveProfileBtn').addEventListener('click', async () => {
     socket.emit('profileUpdated', { userId, username, avatar: data.avatar || '', about: data.about || '' });
     $('profileModal').classList.add('hidden');
   } catch { alert('Save failed. Try again.'); }
-  finally {
-    $('saveProfileBtn').textContent = 'Save Changes';
-    $('saveProfileBtn').disabled    = false;
-  }
+  finally { $('saveProfileBtn').textContent = 'Save Changes'; $('saveProfileBtn').disabled = false; }
 });
 
-// ─── View profile button in header ────────
-$('viewProfileBtn').addEventListener('click', () => {
-  if (viewingUser) openUserActionModal(viewingUser);
-});
+$('viewProfileBtn').addEventListener('click', () => { if (viewingUser) openUserActionModal(viewingUser); });
 
 // ════════════════════════════════════════
 //  SETTINGS
@@ -1328,14 +1107,13 @@ $('settingsBtn').addEventListener('click', () => {
   if (aliasIn) aliasIn.value = localStorage.getItem('publicAlias') || '';
   $('settingsModal').classList.remove('hidden');
 });
-  // Change username
+
 $('changeUsernameBtn').addEventListener('click', async () => {
   const newName = prompt('Enter new username (letters, numbers, _ only):');
   if (!newName) return;
   try {
-    const res = await fetch('/api/auth/username', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    const res  = await fetch('/api/auth/username', {
+      method: 'PUT', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({ newUsername: newName.trim() })
     });
     const data = await res.json();
@@ -1347,20 +1125,19 @@ $('changeUsernameBtn').addEventListener('click', async () => {
   } catch { alert('Server error.'); }
 });
 
-// Delete account
 $('deleteAccountBtn').addEventListener('click', async () => {
-  if (!confirm('⚠️ Delete your account permanently? This cannot be undone!')) return;
-  if (!confirm('Are you really sure? All your messages will be deleted!')) return;
+  if (!confirm('⚠️ Delete your account permanently?')) return;
+  if (!confirm('Are you sure? All messages will be deleted!')) return;
   try {
     const res = await fetch('/api/auth/account', {
-      method: 'DELETE',
-      headers: { Authorization: `Bearer ${token}` }
+      method: 'DELETE', headers: { Authorization: `Bearer ${token}` }
     });
     if (!res.ok) return alert('Delete failed.');
     localStorage.clear();
     window.location.href = '/index.html';
   } catch { alert('Server error.'); }
 });
+
 $('closeSettingsModal').addEventListener('click', () => $('settingsModal').classList.add('hidden'));
 
 $('themeToggle').addEventListener('click', () => {
@@ -1377,55 +1154,38 @@ $('enterSendToggle').addEventListener('click', () => {
   enterSend = !enterSend;
   $('enterSendToggle').classList.toggle('on', enterSend);
   localStorage.setItem('enterSend', enterSend);
-  messageInput.placeholder = enterSend ? 'Type a message...' : 'Type a message (Shift+Enter for newline)...';
 });
 
-// DM Privacy select
 const dmSel = $('dmPrivacySelect');
 if (dmSel) {
   dmSel.addEventListener('change', async () => {
     try {
       const res = await fetch('/api/auth/profile', {
-        method:  'PUT',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body:    JSON.stringify({ dmPrivacy: dmSel.value })
+        method: 'PUT', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ dmPrivacy: dmSel.value })
       });
       if (res.ok) { localStorage.setItem('dmPrivacy', dmSel.value); showToastSimple('✅ Privacy updated'); }
     } catch {}
   });
 }
 
-// Public alias
 const aliasBtn = $('saveAliasBtn');
 if (aliasBtn) {
   aliasBtn.addEventListener('click', async () => {
     const alias = ($('publicAliasInput').value || '').trim();
     try {
       const res = await fetch('/api/auth/profile', {
-        method:  'PUT',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body:    JSON.stringify({ publicAlias: alias })
+        method: 'PUT', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ publicAlias: alias })
       });
-      if (res.ok) {
-        localStorage.setItem('publicAlias', alias);
-        showToastSimple(alias ? `✅ Alias set: ${alias}` : '✅ Alias cleared');
-      }
+      if (res.ok) { localStorage.setItem('publicAlias', alias); showToastSimple(alias ? `✅ Alias set: ${alias}` : '✅ Alias cleared'); }
     } catch {}
   });
 }
 
 $('clearCacheBtn').addEventListener('click', () => {
-  if (confirm('Clear local cache? You will stay logged in.')) {
-    const keep = {
-      token, userId, username,
-      about:       localStorage.getItem('about'),
-      avatar:      localStorage.getItem('avatar'),
-      theme:       localStorage.getItem('theme'),
-      soundOn:     localStorage.getItem('soundOn'),
-      enterSend:   localStorage.getItem('enterSend'),
-      dmPrivacy:   localStorage.getItem('dmPrivacy'),
-      publicAlias: localStorage.getItem('publicAlias')
-    };
+  if (confirm('Clear local cache?')) {
+    const keep = { token, userId, username, about: localStorage.getItem('about'), avatar: localStorage.getItem('avatar'), theme: localStorage.getItem('theme'), soundOn: localStorage.getItem('soundOn'), enterSend: localStorage.getItem('enterSend') };
     localStorage.clear();
     Object.entries(keep).forEach(([k, v]) => { if (v != null) localStorage.setItem(k, v); });
     location.reload();
@@ -1459,21 +1219,14 @@ function showChatOnMobile() {
   }
 }
 $('mobileBack').addEventListener('click', () => chatLayout.classList.remove('chat-open'));
-window.addEventListener('resize', () => {
-  if (window.innerWidth > 768) $('mobileBack').style.display = '';
-});
+window.addEventListener('resize', () => { if (window.innerWidth > 768) $('mobileBack').style.display = ''; });
 
 ['profileModal', 'settingsModal'].forEach(id => {
   $(id).addEventListener('click', e => { if (e.target === $(id)) $(id).classList.add('hidden'); });
 });
 
-// ─── Helper ───────────────────────────────
 function escHtml(s = '') {
-  return String(s)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
 // ════════════════════════════════════════
@@ -1483,10 +1236,7 @@ function escHtml(s = '') {
 openPublicChat();
 loadUsers();
 loadRequests();
-
-// Refresh every 30s
 setInterval(loadUsers,    30_000);
 setInterval(loadRequests, 60_000);
-
 
 })();
