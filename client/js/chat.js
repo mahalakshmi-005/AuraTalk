@@ -1328,6 +1328,39 @@ $('settingsBtn').addEventListener('click', () => {
   if (aliasIn) aliasIn.value = localStorage.getItem('publicAlias') || '';
   $('settingsModal').classList.remove('hidden');
 });
+  // Change username
+$('changeUsernameBtn').addEventListener('click', async () => {
+  const newName = prompt('Enter new username (letters, numbers, _ only):');
+  if (!newName) return;
+  try {
+    const res = await fetch('/api/auth/username', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ newUsername: newName.trim() })
+    });
+    const data = await res.json();
+    if (!res.ok) return alert(data.error || 'Failed');
+    localStorage.setItem('token',    data.token);
+    localStorage.setItem('username', data.username);
+    alert('✅ Username changed! Page will reload.');
+    location.reload();
+  } catch { alert('Server error.'); }
+});
+
+// Delete account
+$('deleteAccountBtn').addEventListener('click', async () => {
+  if (!confirm('⚠️ Delete your account permanently? This cannot be undone!')) return;
+  if (!confirm('Are you really sure? All your messages will be deleted!')) return;
+  try {
+    const res = await fetch('/api/auth/account', {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    if (!res.ok) return alert('Delete failed.');
+    localStorage.clear();
+    window.location.href = '/index.html';
+  } catch { alert('Server error.'); }
+});
 $('closeSettingsModal').addEventListener('click', () => $('settingsModal').classList.add('hidden'));
 
 $('themeToggle').addEventListener('click', () => {
