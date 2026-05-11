@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+    <title>AuraTalk — Sign In</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css" />
+    <style>
+        /* Auth page body needs overflow visible */
+        body {
+            overflow: auto;
+            min-height: 100vh;
+        }
+    </style>
+</head>
+
+<body class="auth-page" id="authBody">
+
+    <div class="auth-bg">
+        <div class="blob blob1"></div>
+        <div class="blob blob2"></div>
+        <div class="blob blob3"></div>
+    </div>
+
+    <div class="auth-wrap">
+        <div class="auth-logo">
+            <div class="logo-mark">💬</div>
+            <h1>AuraTalk</h1>
+            <p>Real-time chat, redefined.</p>
+        </div>
+
+        <div class="auth-card">
+            <div class="auth-tabs">
+                <button class="auth-tab active" id="loginTab">Sign In</button>
+                <button class="auth-tab" id="registerTab">Register</button>
+            </div>
+
+            <!-- LOGIN -->
+            <div id="loginForm" class="auth-form">
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" id="loginEmail" placeholder="you@gmail.com" autocomplete="email" />
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" id="loginPassword" placeholder="••••••••" autocomplete="current-password" />
+                </div>
+                <p class="auth-error" id="loginError"></p>
+                <button class="auth-btn" id="loginBtn">Sign In →</button>
+            </div>
+
+            <!-- REGISTER -->
+            <div id="registerForm" class="auth-form hidden">
+                <div class="form-group">
+                    <label>Username</label>
+                    <input type="text" id="regUsername" placeholder="cooluser_123" autocomplete="username" />
+                </div>
+                <div class="form-group">
+                    <label>Email <span class="hint">(Gmail, Yahoo, Outlook, iCloud...)</span></label>
+                    <input type="email" id="regEmail" placeholder="you@gmail.com" autocomplete="email" />
+                </div>
+                <div class="form-group">
+                    <label>Password <span class="hint">(min 6 chars)</span></label>
+                    <input type="password" id="regPassword" placeholder="••••••••" autocomplete="new-password" />
+                </div>
+                <div class="form-group">
+                    <label>Confirm Password</label>
+                    <input type="password" id="regConfirm" placeholder="••••••••" autocomplete="new-password" />
+                </div>
+                <p class="auth-error" id="regError"></p>
+                <button class="auth-btn" id="registerBtn">Create Account →</button>
+            </div>
+        </div>
+
+        <p class="auth-footer">AuraTalk © 2026 · Real-time Chat</p>
+    </div>
+
+    <script src="js/auth.js"></script>
+</body>
+
+</html>

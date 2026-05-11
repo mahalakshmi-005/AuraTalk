@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>AuraTalk</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css" />
+</head>
+
+<body class="chat-page">
+
+    <div class="chat-layout" id="chatLayout">
+
+        <!-- ════ SIDEBAR ════ -->
+        <aside class="sidebar" id="sidebar">
+
+            <div class="sidebar-top">
+                <div class="brand">
+<div class="brand-mark">AT</div>
+
+<style>
+    .brand-mark {
+        width: 45px;
+        height: 45px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        /* Gradient Background */
+        background: linear-gradient(135deg, #6a11cb, #2575fc);
+
+        /* Text Style */
+        color: white;
+        font-size: 18px;
+        font-weight: 600;
+        font-family: 'Brush Script MT';
+        letter-spacing: 1px;
+
+        /* Rounded Modern Look */
+        border-radius: 18px;
+
+        /* Shadow Effect */
+        box-shadow: 0 8px 20px rgba(37, 117, 252, 0.35);
+
+        /* Glow Border */
+        border: 2px solid rgba(255, 255, 255, 0.2);
+
+        /* Smooth Hover */
+        transition: all 0.3s ease;
+
+        cursor: pointer;
+    }
+
+    .brand-mark:hover {
+        transform: scale(1.08) rotate(-3deg);
+        box-shadow: 0 12px 25px rgba(106, 17, 203, 0.45);
+        background: linear-gradient(135deg, #2575fc, #6a11cb);
+    }
+</style>                    <span class="brand-name">AuraTalk</span>
+                </div>
+                <div class="sidebar-actions">
+                    <button class="icon-btn" id="settingsBtn" title="Settings">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <circle cx="12" cy="12" r="3" />
+                            <path
+                                d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" />
+                        </svg>
+                    </button>
+                    <button class="icon-btn danger" id="logoutBtn" title="Logout">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- My Profile -->
+            <div class="my-profile-chip" id="myProfileChip">
+                <div class="my-avatar-wrap">
+                    <div class="my-avatar" id="myAvatar">?</div>
+                    <span class="online-dot"></span>
+                </div>
+                <div class="my-info">
+                    <div class="my-username" id="myUsername">@user</div>
+                    <div class="my-about" id="myAbout">Hey there! I am using AuraTalk.</div>
+                </div>
+                <button class="edit-profile-btn" id="editProfileBtn" title="Edit profile">✏️</button>
+            </div>
+
+            <!-- Search -->
+            <div class="search-wrap">
+                <svg class="search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    stroke-width="2">
+                    <circle cx="11" cy="11" r="8" />
+                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                </svg>
+                <input type="text" id="searchInput" placeholder="Search users..." class="search-input" />
+            </div>
+
+            <!-- Rooms -->
+            <div class="sidebar-section">
+                <div class="section-label">ROOMS</div>
+                <div class="room-item active" id="publicRoomBtn">
+                    <div class="room-icon">🌍</div>
+                    <div class="room-info">
+                        <div class="room-name">General Chat</div>
+                        <div class="room-desc" id="publicRoomDesc">Everyone</div>
+                    </div>
+                    <div class="room-badge hidden" id="publicBadge">0</div>
+                </div>
+            </div>
+
+            <!-- Users -->
+            <div class="sidebar-section users-section">
+                <div class="section-label" style="display:flex;align-items:center;justify-content:space-between">
+                    <span>DIRECT MESSAGES</span>
+                    <button id="requestsInboxBtn" class="icon-btn" title="Connect Requests"
+                        style="position:relative;font-size:.7rem;padding:3px 7px;border-radius:8px;background:var(--accent-dim);color:var(--accent)">
+                        Requests <span id="requestsBadge" class="hidden"
+                            style="position:absolute;top:-4px;right:-4px;background:#ef4444;color:#fff;border-radius:50%;width:16px;height:16px;font-size:.6rem;display:flex;align-items:center;justify-content:center;font-weight:700">0</span>
+                    </button>
+                </div>
+                <div id="usersList" class="users-list">
+                    <div class="users-loading">Loading...</div>
+                </div>
+            </div>
+
+        </aside>
+
+        <!-- ════ CHAT MAIN ════ -->
+        <main class="chat-main" id="chatMain">
+
+            <div class="chat-header">
+                <div class="chat-header-left">
+                    <button class="mobile-back" id="mobileBack" style="display:none">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2.5">
+                            <path d="M19 12H5M12 5l-7 7 7 7" />
+                        </svg>
+                    </button>
+                    <div class="chat-avatar-header" id="chatAvatarHeader">🌍</div>
+                    <div class="chat-header-info">
+                        <div class="chat-header-name" id="chatHeaderName">General Chat</div>
+                        <div class="chat-header-status" id="chatHeaderStatus">Public room · everyone can chat</div>
+                    </div>
+                </div>
+                <div class="chat-header-right">
+                    <button class="icon-btn hidden" id="viewProfileBtn" title="View profile">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
+                            <circle cx="12" cy="7" r="4" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <div class="messages-area" id="messagesArea">
+                <div class="messages-welcome">
+                    <div class="welcome-icon">💬</div>
+                    <div class="welcome-text">Welcome to General Chat!</div>
+                    <div class="welcome-sub">Say hello to everyone 👋</div>
+                </div>
+            </div>
+
+            <div class="typing-bar hidden" id="typingBar">
+                <div class="typing-dots"><span></span><span></span><span></span></div>
+                <span id="typingText">Someone is typing...</span>
+            </div>
+
+            <div class="chat-input-wrap">
+                <div class="input-row">
+                    <button class="input-action-btn" id="emojiBtn" title="Emoji">😊</button>
+                    <button class="input-action-btn" id="imageBtn" title="Send image">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <rect x="3" y="3" width="18" height="18" rx="2" />
+                            <circle cx="8.5" cy="8.5" r="1.5" />
+                            <polyline points="21 15 16 10 5 21" />
+                        </svg>
+                    </button>
+                    <input type="file" id="imageInput" accept="image/*" style="display:none" />
+                    <input type="text" id="messageInput" placeholder="Type a message..." class="message-input"
+                        autocomplete="off" />
+                    <button class="send-btn" id="sendBtn">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2.5">
+                            <line x1="22" y1="2" x2="11" y2="13" />
+                            <polygon points="22 2 15 22 11 13 2 9 22 2" />
+                        </svg>
+                    </button>
+                </div>
+                <div id="imagePreviewWrap" class="image-preview-wrap hidden">
+                    <img id="imagePreviewImg" class="image-preview-thumb" src="" alt="" />
+                    <span class="preview-label" id="previewLabel">Image ready to send</span>
+                    <button id="cancelImageBtn" class="cancel-image-btn">✕</button>
+                </div>
+                <div id="emojiPicker" class="emoji-picker"></div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- Toast -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <!-- Context Menu -->
+    <div id="contextMenu" class="msg-context hidden"></div>
+
+    <!-- ════ PROFILE MODAL ════ -->
+    <div class="modal-overlay hidden" id="profileModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>My Profile</h2>
+                <button class="modal-close" id="closeProfileModal">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="profile-avatar-section">
+                    <div class="profile-avatar-big" id="profileAvatarBig">?</div>
+                    <label class="change-avatar-btn" for="avatarInput">📷 Change Photo</label>
+                    <input type="file" id="avatarInput" accept="image/*" style="display:none" />
+                </div>
+                <div class="form-group">
+                    <label>Username</label>
+                    <input type="text" id="profileUsername" class="input-readonly" readonly />
+                </div>
+                <div class="form-group">
+                    <label>About <span class="hint">(max 120 chars)</span></label>
+                    <textarea id="profileAbout" class="about-textarea" maxlength="120" rows="3"
+                        placeholder="Tell something about yourself..."></textarea>
+                    <div class="char-count"><span id="aboutCharCount">0</span>/120</div>
+                </div>
+                <button class="auth-btn" id="saveProfileBtn">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ════ VIEW USER PROFILE ════ -->
+    <div class="modal-overlay hidden" id="viewProfileModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>Profile</h2>
+                <button class="modal-close" id="closeViewProfileModal">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="profile-avatar-section">
+                    <div class="profile-avatar-big" id="viewProfileAvatar">?</div>
+                    <div class="profile-online-badge" id="viewProfileOnlineBadge">Offline</div>
+                </div>
+                <div class="profile-name-big" id="viewProfileName">Username</div>
+                <div class="profile-about-view" id="viewProfileAbout">Hey there! I am using AuraTalk.</div>
+                <div class="profile-meta" id="viewProfileMeta"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ════ SETTINGS MODAL ════ -->
+    <div class="modal-overlay hidden" id="settingsModal">
+        <div class="modal settings-modal">
+            <div class="modal-header">
+                <h2>Settings</h2>
+                <button class="modal-close" id="closeSettingsModal">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="settings-section">
+                    <div class="settings-section-title">APPEARANCE</div>
+                    <div class="settings-item">
+                        <div class="settings-item-left">
+                            <div class="settings-icon">🌙</div>
+                            <div>
+                                <div class="settings-label">Theme</div>
+                                <div class="settings-desc">Dark / Light mode</div>
+                            </div>
+                        </div>
+                        <div class="toggle" id="themeToggle">
+                            <div class="toggle-thumb"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="settings-section">
+                    <div class="settings-section-title">MESSAGING</div>
+                    <div class="settings-item">
+                        <div class="settings-item-left">
+                            <div class="settings-icon">🔔</div>
+                            <div>
+                                <div class="settings-label">Sound Notifications</div>
+                                <div class="settings-desc">Play sound on new message</div>
+                            </div>
+                        </div>
+                        <div class="toggle on" id="soundToggle">
+                            <div class="toggle-thumb"></div>
+                        </div>
+                    </div>
+                    <div class="settings-item">
+                        <div class="settings-item-left">
+                            <div class="settings-icon">↩️</div>
+                            <div>
+                                <div class="settings-label">Enter to Send</div>
+                                <div class="settings-desc">Press Enter to send message</div>
+                            </div>
+                        </div>
+                        <div class="toggle on" id="enterSendToggle">
+                            <div class="toggle-thumb"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="settings-section">
+                    <div class="settings-section-title">ABOUT</div>
+                    <div class="settings-about-card">
+                        <div class="settings-logo">💬</div>
+                        <div class="settings-app-name">AuraTalk</div>
+                        <div class="settings-version">Version 3.0.0</div>
+                        <div class="settings-tagline">Real-time chat, redefined.</div>
+                    </div>
+                </div>
+                <div class="settings-section">
+                    <div class="settings-section-title">PRIVACY</div>
+                    <div class="settings-item">
+                        <div class="settings-item-left">
+                            <div class="settings-icon">🔒</div>
+                            <div>
+                                <div class="settings-label">Who can DM me</div>
+                                <div class="settings-desc">Control who can send you messages</div>
+                            </div>
+                        </div>
+                        <select id="dmPrivacySelect"
+                            style="background:var(--glass);border:1px solid var(--border);color:var(--text-1);padding:5px 10px;border-radius:8px;font-size:.8rem;cursor:pointer">
+                            <option value="connected">Connected only</option>
+                            <option value="everyone">Everyone</option>
+                        </select>
+                    </div>
+                    <div class="settings-item">
+                        <div class="settings-item-left">
+                            <div class="settings-icon">🎭</div>
+                            <div>
+                                <div class="settings-label">General Chat Alias</div>
+                                <div class="settings-desc">Show a different name in public chat</div>
+                            </div>
+                        </div>
+                        <div style="display:flex;gap:6px;align-items:center">
+                            <input id="publicAliasInput" type="text" maxlength="20" placeholder="optional alias"
+                                style="background:var(--glass);border:1px solid var(--border);color:var(--text-1);padding:5px 10px;border-radius:8px;font-size:.8rem;width:110px" />
+                            <button id="saveAliasBtn"
+                                style="background:var(--accent);color:#fff;border:none;padding:5px 10px;border-radius:8px;font-size:.75rem;cursor:pointer;font-weight:600">Save</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="settings-section">
+                    <div class="settings-section-title">ACCOUNT</div>
+                    <button class="danger-btn" id="clearCacheBtn">🗑️ Clear Local Cache</button>
+                    <button class="danger-btn" id="settingsLogoutBtn">⏻ Logout</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lightbox -->
+    <div class="lightbox hidden" id="lightbox">
+        <button class="lightbox-close" id="lightboxClose">✕</button>
+        <img class="lightbox-img" id="lightboxImg" src="" alt="" />
+    </div>
+
+
+    <!-- ════ CONNECT REQUESTS MODAL ════ -->
+    <div class="modal-overlay hidden" id="requestsModal">
+        <div class="modal" style="max-width:380px">
+            <div class="modal-header">
+                <h2>🔗 Connect Requests</h2>
+                <button class="modal-close" id="closeRequestsModal">✕</button>
+            </div>
+            <div class="modal-body" style="padding:0">
+                <div id="requestsList" style="max-height:420px;overflow-y:auto">
+                    <div style="padding:32px;text-align:center;color:var(--text-2)">No pending requests</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ════ USER ACTIONS MODAL (Connect/Block) ════ -->
+    <div class="modal-overlay hidden" id="userActionModal">
+        <div class="modal" style="max-width:340px">
+            <div class="modal-header">
+                <h2 id="userActionTitle">User</h2>
+                <button class="modal-close" id="closeUserActionModal">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="profile-avatar-section">
+                    <div class="profile-avatar-big" id="uaAvatar">?</div>
+                    <div class="profile-online-badge" id="uaOnlineBadge">Offline</div>
+                </div>
+                <div class="profile-name-big" id="uaUsername">Username</div>
+                <div class="profile-about-view" id="uaAbout">—</div>
+                <div style="margin-top:1rem;display:flex;flex-direction:column;gap:8px">
+                    <div id="uaConnectSection">
+                        <!-- Dynamically filled -->
+                    </div>
+                    <button id="uaBlockBtn" class="danger-btn" style="margin-top:4px">🚫 Block User</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="js/chat.js"></script>
+</body>
+
+</html>
