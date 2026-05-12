@@ -4,13 +4,12 @@
 //  ✅ Delete permanent (no re-appear)
 //  ✅ Forward Messages
 //  ✅ Seen Ticks
-//  ✅ Mobile long-press context menu
+//  ✅ Mobile long-press context menu FIXED
 // ════════════════════════════════════════
 
 (() => {
 'use strict';
 
-// ─── Auth ─────────────────────────────────
 const token    = localStorage.getItem('token');
 const userId   = localStorage.getItem('userId');
 const username = localStorage.getItem('username');
@@ -20,10 +19,8 @@ if (!token || !userId || !username || username === 'null') {
   return;
 }
 
-// ─── Theme ────────────────────────────────
 if (localStorage.getItem('theme') === 'light') document.body.classList.add('light');
 
-// ─── Sound ────────────────────────────────
 let soundOn   = localStorage.getItem('soundOn')   !== 'false';
 let enterSend = localStorage.getItem('enterSend') !== 'false';
 const audioCtx = typeof AudioContext !== 'undefined' ? new AudioContext() : null;
@@ -39,7 +36,6 @@ function playPing() {
   } catch {}
 }
 
-// ─── Socket ───────────────────────────────
 if (window._auraSocket) {
   try { window._auraSocket.removeAllListeners(); window._auraSocket.disconnect(); } catch {}
 }
@@ -51,7 +47,6 @@ const socket = io({
 });
 window._auraSocket = socket;
 
-// ─── State ────────────────────────────────
 let currentChat     = 'public';
 let currentChatName = 'General Chat';
 let allUsers        = [];
@@ -64,7 +59,6 @@ let pendingRequests = [];
 let forwardingMsg   = null;
 let forwardSelUid   = null;
 
-// ─── DOM ──────────────────────────────────
 const $  = id => document.getElementById(id);
 const messagesArea     = $('messagesArea');
 const messageInput     = $('messageInput');
@@ -80,7 +74,6 @@ const previewLabel     = $('previewLabel');
 const emojiPicker      = $('emojiPicker');
 const contextMenu      = $('contextMenu');
 
-// ─── Forward Modal ────────────────────────
 let forwardModal = $('forwardModal');
 if (!forwardModal) {
   forwardModal = document.createElement('div');
@@ -108,7 +101,6 @@ if (!forwardModal) {
   document.body.appendChild(forwardModal);
 }
 
-// ─── My Profile UI ────────────────────────
 function initMyProfile() {
   const av = localStorage.getItem('avatar') || '';
   const ab = localStorage.getItem('about')  || 'Hey there! I am using AuraTalk.';
@@ -120,15 +112,8 @@ function initMyProfile() {
 }
 initMyProfile();
 
-// ════════════════════════════════════════
-//  SOCKET EVENTS
-// ════════════════════════════════════════
-
 socket.on('connect', () => {
-  socket.emit('userOnline', {
-    userId, username,
-    avatar: localStorage.getItem('avatar') || ''
-  });
+  socket.emit('userOnline', { userId, username, avatar: localStorage.getItem('avatar') || '' });
 });
 
 socket.on('onlineUsers', users => {
@@ -161,7 +146,6 @@ socket.on('privateMessage', msg => {
   const otherId = String(msg.senderId) === String(userId)
     ? String(msg.receiverId)
     : String(msg.senderId);
-
   if (currentChat === otherId) {
     appendMessage(msg, String(msg.senderId) === String(userId) ? 'sent' : 'received');
     scrollBottom();
@@ -179,40 +163,30 @@ socket.on('privateMessage', msg => {
 
 socket.on('messagesSeen', ({ by, from }) => {
   if (String(from) !== String(userId)) return;
-  document.querySelectorAll('.msg-ticks').forEach(el => {
-    el.innerHTML = tickSVG('seen');
-  });
+  document.querySelectorAll('.msg-ticks').forEach(el => { el.innerHTML = tickSVG('seen'); });
 });
 
-// ─── DELETE: permanent, no re-appear ──────
 socket.on('messageDeleted', ({ msgId }) => {
   if (!msgId) return;
-  // Try both with and without CSS.escape for safety
   let el = document.querySelector(`[data-msgid="${msgId}"]`);
-  if (!el) {
-    try { el = document.querySelector(`[data-msgid="${CSS.escape(msgId)}"]`); } catch {}
-  }
+  if (!el) { try { el = document.querySelector(`[data-msgid="${CSS.escape(msgId)}"]`); } catch {} }
   if (el) {
-    const replacement = document.createElement('div');
-    replacement.className       = 'msg-bubble';
-    replacement.dataset.msgid   = msgId;
-    replacement.dataset.deleted = '1';
-    replacement.style.opacity   = '.5';
-    replacement.style.cursor    = 'default';
-    replacement.style.fontStyle = 'italic';
-    replacement.style.fontSize  = '.8rem';
-    replacement.textContent     = '🚫 Message deleted';
-    el.replaceWith(replacement);
+    const r = document.createElement('div');
+    r.className = 'msg-bubble';
+    r.dataset.msgid = msgId;
+    r.dataset.deleted = '1';
+    r.style.opacity = '.5';
+    r.style.cursor = 'default';
+    r.style.fontStyle = 'italic';
+    r.style.fontSize = '.8rem';
+    r.textContent = '🚫 Message deleted';
+    el.replaceWith(r);
   }
 });
 
 socket.on('connectRequestReceived', ({ requestId, fromId, fromName, fromAvatar, note }) => {
   if (!pendingRequests.find(r => r._id === requestId)) {
-    pendingRequests.unshift({
-      _id: requestId,
-      from: { _id: fromId, username: fromName, avatar: fromAvatar },
-      message: note || ''
-    });
+    pendingRequests.unshift({ _id: requestId, from: { _id: fromId, username: fromName, avatar: fromAvatar }, message: note || '' });
     updateRequestsBadge();
   }
   showToastSimple(`🔗 ${escHtml(fromName)} wants to connect`);
@@ -220,9 +194,7 @@ socket.on('connectRequestReceived', ({ requestId, fromId, fromName, fromAvatar, 
 });
 
 socket.on('connectResponseReceived', ({ accepted, fromName }) => {
-  showToastSimple(accepted
-    ? `✅ ${escHtml(fromName)} accepted your request!`
-    : `❌ ${escHtml(fromName)} declined your request`);
+  showToastSimple(accepted ? `✅ ${escHtml(fromName)} accepted your request!` : `❌ ${escHtml(fromName)} declined your request`);
   loadUsers();
 });
 
@@ -246,15 +218,9 @@ socket.on('userProfileUpdated', ({ userId: uid, avatar, about }) => {
   }
 });
 
-// ════════════════════════════════════════
-//  DATA LOADING
-// ════════════════════════════════════════
-
 async function loadUsers() {
   try {
-    const res = await fetch('/api/auth/users', {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+    const res = await fetch('/api/auth/users', { headers: { Authorization: `Bearer ${token}` } });
     if (!res.ok) return;
     const data = await res.json();
     if (!Array.isArray(data)) return;
@@ -265,9 +231,7 @@ async function loadUsers() {
 
 async function loadRequests() {
   try {
-    const res = await fetch('/api/auth/connect/requests', {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+    const res = await fetch('/api/auth/connect/requests', { headers: { Authorization: `Bearer ${token}` } });
     if (!res.ok) return;
     pendingRequests = await res.json();
     updateRequestsBadge();
@@ -294,14 +258,8 @@ async function loadPublicMessages() {
 
 async function loadPrivateMessages(otherId) {
   try {
-    const res = await fetch(`/api/messages/private/${userId}/${otherId}`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    if (res.status === 403) {
-      clearMessages();
-      showChatPlaceholder('🔒 Connect first before chatting privately');
-      return;
-    }
+    const res = await fetch(`/api/messages/private/${userId}/${otherId}`, { headers: { Authorization: `Bearer ${token}` } });
+    if (res.status === 403) { clearMessages(); showChatPlaceholder('🔒 Connect first before chatting privately'); return; }
     const msgs = await res.json();
     clearMessages();
     msgs.forEach(m => appendMessage(m, String(m.senderId) === String(userId) ? 'sent' : 'received'));
@@ -310,10 +268,6 @@ async function loadPrivateMessages(otherId) {
   } catch (e) { console.error(e); }
 }
 
-// ════════════════════════════════════════
-//  RENDER USERS
-// ════════════════════════════════════════
-
 function renderUsers() {
   const q = ($('searchInput').value || '').trim().toLowerCase();
   let list = allUsers.filter(u => {
@@ -321,37 +275,22 @@ function renderUsers() {
     if (q) return u.username.toLowerCase().includes(q);
     return true;
   });
-
-  if (!list.length) {
-    usersList.innerHTML = `<div class="users-loading">${q ? 'No results' : 'No users yet'}</div>`;
-    return;
-  }
-
+  if (!list.length) { usersList.innerHTML = `<div class="users-loading">${q ? 'No results' : 'No users yet'}</div>`; return; }
   const sortFn = (a, b) => {
     const ao = onlineSet.has(String(a._id)) ? 1 : 0;
     const bo = onlineSet.has(String(b._id)) ? 1 : 0;
     if (ao !== bo) return bo - ao;
     return (unread[String(b._id)] || 0) - (unread[String(a._id)] || 0);
   };
-
   const contacts = list.filter(u => u.connectionStatus === 'connected').sort(sortFn);
   const discover = list.filter(u => u.connectionStatus !== 'connected').sort(sortFn);
-
   let html = '';
-  if (contacts.length) {
-    html += `<div class="users-section-head">💬 Contacts (${contacts.length})</div>`;
-    html += contacts.map(u => userItemHtml(u)).join('');
-  }
-  if (discover.length) {
-    html += `<div class="users-section-head" style="margin-top:${contacts.length ? '6px' : '0'}">👥 Discover People</div>`;
-    html += discover.map(u => userItemHtml(u)).join('');
-  }
-
+  if (contacts.length) { html += `<div class="users-section-head">💬 Contacts (${contacts.length})</div>`; html += contacts.map(u => userItemHtml(u)).join(''); }
+  if (discover.length) { html += `<div class="users-section-head" style="margin-top:${contacts.length?'6px':'0'}">👥 Discover People</div>`; html += discover.map(u => userItemHtml(u)).join(''); }
   usersList.innerHTML = html;
   usersList.querySelectorAll('.user-item').forEach(el => {
     el.addEventListener('click', () => {
-      const uid  = el.dataset.id;
-      const st   = el.dataset.status;
+      const uid = el.dataset.id, st = el.dataset.status;
       const user = allUsers.find(u => String(u._id) === uid);
       if (!user) return;
       if (st === 'connected') openPrivateChat(uid, user.username);
@@ -361,90 +300,51 @@ function renderUsers() {
 }
 
 function userItemHtml(user) {
-  const uid    = String(user._id);
-  const online = onlineSet.has(uid);
-  const badge  = unread[uid] || 0;
+  const uid = String(user._id), online = onlineSet.has(uid), badge = unread[uid] || 0;
   const active = currentChat === uid ? 'active' : '';
-  const av     = user.avatar
-    ? `<img src="${user.avatar}" alt=""/>`
-    : user.username.charAt(0).toUpperCase();
+  const av = user.avatar ? `<img src="${user.avatar}" alt=""/>` : user.username.charAt(0).toUpperCase();
   const st = user.connectionStatus;
   let lockIcon = '', subText = online ? '● Online' : 'Offline';
-  if (st === 'pending_sent')     { lockIcon = ' ⏳'; subText = '<span style="font-size:.63rem;background:var(--glass-strong);color:var(--text-2);padding:2px 6px;border-radius:6px">Request Sent</span>'; }
+  if (st === 'pending_sent') { lockIcon = ' ⏳'; subText = '<span style="font-size:.63rem;background:var(--glass-strong);color:var(--text-2);padding:2px 6px;border-radius:6px">Request Sent</span>'; }
   else if (st === 'pending_received') { lockIcon = ' 🔔'; subText = '<span style="font-size:.63rem;background:var(--accent-dim);color:var(--accent);padding:2px 6px;border-radius:6px;font-weight:700">Respond ↩</span>'; }
-  else if (st === 'none')        { lockIcon = ' 🔒'; }
-  return `
-    <div class="user-item ${active}" data-id="${uid}" data-status="${st}">
-      <div class="user-avatar-wrap">
-        <div class="user-avatar">${av}</div>
-        <span class="user-status-dot ${online ? 'online' : ''}"></span>
-      </div>
-      <div class="user-info">
-        <div class="user-name">${escHtml(user.username)}<span style="font-size:.72rem;opacity:.7">${lockIcon}</span></div>
-        <div class="user-last-msg">${subText}</div>
-      </div>
-      <div class="user-meta">${badge ? `<div class="user-badge">${badge}</div>` : ''}</div>
-    </div>`;
+  else if (st === 'none') { lockIcon = ' 🔒'; }
+  return `<div class="user-item ${active}" data-id="${uid}" data-status="${st}">
+    <div class="user-avatar-wrap"><div class="user-avatar">${av}</div><span class="user-status-dot ${online?'online':''}"></span></div>
+    <div class="user-info"><div class="user-name">${escHtml(user.username)}<span style="font-size:.72rem;opacity:.7">${lockIcon}</span></div><div class="user-last-msg">${subText}</div></div>
+    <div class="user-meta">${badge ? `<div class="user-badge">${badge}</div>` : ''}</div>
+  </div>`;
 }
-
-// ════════════════════════════════════════
-//  USER ACTION MODAL
-// ════════════════════════════════════════
 
 function openUserActionModal(user) {
   if (!user) return;
   viewingUser = user;
-  const uid    = String(user._id);
-  const online = onlineSet.has(uid);
-  const status = user.connectionStatus;
-
+  const uid = String(user._id), online = onlineSet.has(uid), status = user.connectionStatus;
   $('userActionTitle').textContent = user.username;
   const av = $('uaAvatar');
-  if (user.avatar) { av.innerHTML = `<img src="${user.avatar}" alt=""/>`; }
-  else { av.textContent = user.username.charAt(0).toUpperCase(); }
-
+  if (user.avatar) { av.innerHTML = `<img src="${user.avatar}" alt=""/>`; } else { av.textContent = user.username.charAt(0).toUpperCase(); }
   const badge = $('uaOnlineBadge');
   badge.textContent = online ? '● Online' : '● Offline';
-  badge.className   = `profile-online-badge ${online ? 'online' : 'offline'}`;
+  badge.className = `profile-online-badge ${online ? 'online' : 'offline'}`;
   $('uaUsername').textContent = user.username;
-  $('uaAbout').textContent    = user.about || 'Hey there! I am using AuraTalk.';
-
+  $('uaAbout').textContent = user.about || 'Hey there! I am using AuraTalk.';
   const cs = $('uaConnectSection');
   cs.innerHTML = '';
-
   if (status === 'none') {
-    cs.innerHTML = `
-      <input id="connectNoteInput" type="text" maxlength="100" placeholder="Add a note (optional)..."
-        style="width:100%;padding:8px 12px;border-radius:8px;border:1px solid var(--border);
-        background:var(--glass-strong);color:var(--text-1);font-size:.85rem;outline:none;
-        box-sizing:border-box;margin-bottom:8px"/>
-      <button id="sendConnectBtn" class="auth-btn">🔗 Send Connect Request</button>`;
-    $('sendConnectBtn').addEventListener('click', () => {
-      const note = $('connectNoteInput') ? $('connectNoteInput').value.trim() : '';
-      sendConnectRequest(uid, user.username, user.avatar || '', note);
-    });
+    cs.innerHTML = `<input id="connectNoteInput" type="text" maxlength="100" placeholder="Add a note (optional)..." style="width:100%;padding:8px 12px;border-radius:8px;border:1px solid var(--border);background:var(--glass-strong);color:var(--text-1);font-size:.85rem;outline:none;box-sizing:border-box;margin-bottom:8px"/><button id="sendConnectBtn" class="auth-btn">🔗 Send Connect Request</button>`;
+    $('sendConnectBtn').addEventListener('click', () => { const note = $('connectNoteInput') ? $('connectNoteInput').value.trim() : ''; sendConnectRequest(uid, user.username, user.avatar || '', note); });
   } else if (status === 'pending_sent') {
     cs.innerHTML = `<div class="ua-status-box" style="text-align:center;padding:12px;background:var(--glass-strong);border-radius:10px;color:var(--text-2);font-size:.85rem">⏳ Connect request sent<br/><span style="font-size:.75rem;color:var(--text-3)">Waiting for ${escHtml(user.username)} to respond</span></div>`;
   } else if (status === 'pending_received') {
-    const req  = pendingRequests.find(r => String(r.from._id) === uid) || { _id: user.pendingRequestId, message: '' };
+    const req = pendingRequests.find(r => String(r.from._id) === uid) || { _id: user.pendingRequestId, message: '' };
     const note = req.message ? `<div style="font-style:italic;font-size:.82rem;color:var(--text-2);margin-bottom:10px;padding:8px;background:var(--glass-strong);border-radius:8px">"${escHtml(req.message)}"</div>` : '';
-    cs.innerHTML = `
-      ${note}
-      <p style="font-size:.82rem;color:var(--text-2);margin-bottom:10px;text-align:center"><strong>${escHtml(user.username)}</strong> wants to connect with you</p>
-      <div style="display:flex;gap:8px">
-        <button id="acceptReqBtn" class="auth-btn" style="flex:1">✅ Accept</button>
-        <button id="rejectReqBtn" class="danger-btn" style="flex:1">❌ Decline</button>
-      </div>`;
+    cs.innerHTML = `${note}<p style="font-size:.82rem;color:var(--text-2);margin-bottom:10px;text-align:center"><strong>${escHtml(user.username)}</strong> wants to connect with you</p><div style="display:flex;gap:8px"><button id="acceptReqBtn" class="auth-btn" style="flex:1">✅ Accept</button><button id="rejectReqBtn" class="danger-btn" style="flex:1">❌ Decline</button></div>`;
     $('acceptReqBtn').addEventListener('click', () => respondRequest(req._id || user.pendingRequestId, 'accept', uid, user.username));
     $('rejectReqBtn').addEventListener('click', () => respondRequest(req._id || user.pendingRequestId, 'reject', uid, user.username));
   } else if (status === 'connected') {
-    cs.innerHTML = `
-      <button id="chatNowBtn" class="auth-btn">💬 Open Chat</button>
-      <button id="disconnectBtn" class="danger-btn" style="margin-top:8px">🔗 Disconnect</button>`;
+    cs.innerHTML = `<button id="chatNowBtn" class="auth-btn">💬 Open Chat</button><button id="disconnectBtn" class="danger-btn" style="margin-top:8px">🔗 Disconnect</button>`;
     $('chatNowBtn').addEventListener('click', () => { $('userActionModal').classList.add('hidden'); openPrivateChat(uid, user.username); });
     $('disconnectBtn').addEventListener('click', () => disconnectUser(uid, user.username));
   }
-
   $('uaBlockBtn').onclick = () => blockUser(uid, user.username);
   $('userActionModal').classList.remove('hidden');
 }
@@ -453,10 +353,7 @@ async function sendConnectRequest(toId, toName, toAvatar, note) {
   const btn = $('sendConnectBtn');
   if (btn) { btn.disabled = true; btn.textContent = 'Sending...'; }
   try {
-    const res = await fetch(`/api/auth/connect/request/${toId}`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ message: note })
-    });
+    const res = await fetch(`/api/auth/connect/request/${toId}`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ message: note }) });
     const data = await res.json();
     if (!res.ok) { showToastSimple('❌ ' + (data.error || 'Failed')); if (btn) { btn.disabled = false; btn.textContent = '🔗 Send Connect Request'; } return; }
     socket.emit('connectRequest', { toId, fromName: username, fromAvatar: localStorage.getItem('avatar') || '', requestId: data.requestId || '', note });
@@ -470,13 +367,10 @@ async function respondRequest(requestId, action, fromId, fromName) {
   if (!requestId) {
     await loadRequests();
     const req = pendingRequests.find(r => String(r.from._id) === String(fromId));
-    if (req) requestId = req._id;
-    else { showToastSimple('❌ Request not found'); return; }
+    if (req) requestId = req._id; else { showToastSimple('❌ Request not found'); return; }
   }
   try {
-    const res = await fetch(`/api/auth/connect/${requestId}/${action}`, {
-      method: 'PUT', headers: { Authorization: `Bearer ${token}` }
-    });
+    const res = await fetch(`/api/auth/connect/${requestId}/${action}`, { method: 'PUT', headers: { Authorization: `Bearer ${token}` } });
     if (!res.ok) { const d = await res.json(); showToastSimple('❌ ' + (d.error || 'Failed')); return; }
     pendingRequests = pendingRequests.filter(r => r._id !== requestId);
     updateRequestsBadge();
@@ -511,64 +405,38 @@ async function blockUser(otherId, otherName) {
   } catch { showToastSimple('❌ Network error'); }
 }
 
-// ─── Requests Modal ───────────────────────
-if ($('requestsInboxBtn')) {
-  $('requestsInboxBtn').addEventListener('click', () => {
-    renderRequestsList();
-    $('requestsModal').classList.remove('hidden');
-  });
-}
-if ($('closeRequestsModal'))
-  $('closeRequestsModal').addEventListener('click', () => $('requestsModal').classList.add('hidden'));
-if ($('requestsModal'))
-  $('requestsModal').addEventListener('click', e => { if (e.target === $('requestsModal')) $('requestsModal').classList.add('hidden'); });
+if ($('requestsInboxBtn')) { $('requestsInboxBtn').addEventListener('click', () => { renderRequestsList(); $('requestsModal').classList.remove('hidden'); }); }
+if ($('closeRequestsModal')) $('closeRequestsModal').addEventListener('click', () => $('requestsModal').classList.add('hidden'));
+if ($('requestsModal')) $('requestsModal').addEventListener('click', e => { if (e.target === $('requestsModal')) $('requestsModal').classList.add('hidden'); });
 
 function renderRequestsList() {
   const container = $('requestsList');
   if (!container) return;
-  if (!pendingRequests.length) {
-    container.innerHTML = `<div style="padding:32px;text-align:center;color:var(--text-2);font-size:.9rem">✅ No pending requests</div>`;
-    return;
-  }
+  if (!pendingRequests.length) { container.innerHTML = `<div style="padding:32px;text-align:center;color:var(--text-2);font-size:.9rem">✅ No pending requests</div>`; return; }
   container.innerHTML = pendingRequests.map(req => {
-    const u  = req.from;
-    const av = u.avatar
-      ? `<img src="${u.avatar}" style="width:42px;height:42px;border-radius:50%;object-fit:cover"/>`
-      : `<div style="width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent-dark));color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:1rem">${u.username.charAt(0).toUpperCase()}</div>`;
+    const u = req.from;
+    const av = u.avatar ? `<img src="${u.avatar}" style="width:42px;height:42px;border-radius:50%;object-fit:cover"/>` : `<div style="width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent-dark));color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:1rem">${u.username.charAt(0).toUpperCase()}</div>`;
     const note = req.message ? `<div style="font-size:.78rem;color:var(--text-3);font-style:italic;margin-top:3px">"${escHtml(req.message)}"</div>` : '';
-    return `
-      <div style="display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--border)">
-        <div style="flex-shrink:0">${av}</div>
-        <div style="flex:1;min-width:0">
-          <div style="font-weight:700;font-size:.9rem">${escHtml(u.username)}</div>
-          ${note}
-        </div>
-        <div style="display:flex;gap:6px">
-          <button onclick="window._reqAccept('${req._id}','${u._id}','${escHtml(u.username)}')"
-            style="background:var(--accent);color:#fff;border:none;padding:6px 12px;border-radius:8px;cursor:pointer;font-size:.8rem;font-weight:600">✅</button>
-          <button onclick="window._reqReject('${req._id}','${u._id}','${escHtml(u.username)}')"
-            style="background:var(--danger-dim);color:var(--danger);border:1px solid rgba(239,68,68,.2);padding:6px 12px;border-radius:8px;cursor:pointer;font-size:.8rem;font-weight:600">❌</button>
-        </div>
-      </div>`;
+    return `<div style="display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--border)">
+      <div style="flex-shrink:0">${av}</div>
+      <div style="flex:1;min-width:0"><div style="font-weight:700;font-size:.9rem">${escHtml(u.username)}</div>${note}</div>
+      <div style="display:flex;gap:6px">
+        <button onclick="window._reqAccept('${req._id}','${u._id}','${escHtml(u.username)}')" style="background:var(--accent);color:#fff;border:none;padding:6px 12px;border-radius:8px;cursor:pointer;font-size:.8rem;font-weight:600">✅</button>
+        <button onclick="window._reqReject('${req._id}','${u._id}','${escHtml(u.username)}')" style="background:var(--danger-dim);color:var(--danger);border:1px solid rgba(239,68,68,.2);padding:6px 12px;border-radius:8px;cursor:pointer;font-size:.8rem;font-weight:600">❌</button>
+      </div></div>`;
   }).join('');
 }
 window._reqAccept = (rid, fid, fn) => respondRequest(rid, 'accept', fid, fn);
 window._reqReject = (rid, fid, fn) => respondRequest(rid, 'reject', fid, fn);
 
-if ($('closeUserActionModal'))
-  $('closeUserActionModal').addEventListener('click', () => $('userActionModal').classList.add('hidden'));
-if ($('userActionModal'))
-  $('userActionModal').addEventListener('click', e => { if (e.target === $('userActionModal')) $('userActionModal').classList.add('hidden'); });
-
-// ════════════════════════════════════════
-//  OPEN CHATS
-// ════════════════════════════════════════
+if ($('closeUserActionModal')) $('closeUserActionModal').addEventListener('click', () => $('userActionModal').classList.add('hidden'));
+if ($('userActionModal')) $('userActionModal').addEventListener('click', e => { if (e.target === $('userActionModal')) $('userActionModal').classList.add('hidden'); });
 
 function openPublicChat() {
   currentChat = 'public'; currentChatName = 'General Chat';
   document.querySelectorAll('.user-item').forEach(e => e.classList.remove('active'));
   $('publicRoomBtn').classList.add('active');
-  $('chatHeaderName').textContent   = 'General Chat';
+  $('chatHeaderName').textContent = 'General Chat';
   $('chatHeaderStatus').textContent = 'Public room · everyone can chat';
   $('chatHeaderStatus').style.color = '';
   const av = $('chatAvatarHeader');
@@ -606,17 +474,8 @@ function updateChatAvatarHeader(user) {
 }
 
 function showChatPlaceholder(msg) {
-  messagesArea.innerHTML = `
-    <div class="messages-welcome">
-      <div class="welcome-icon">🔒</div>
-      <div class="welcome-text">${msg}</div>
-      <div class="welcome-sub">Click their name → Send Connect Request</div>
-    </div>`;
+  messagesArea.innerHTML = `<div class="messages-welcome"><div class="welcome-icon">🔒</div><div class="welcome-text">${msg}</div><div class="welcome-sub">Click their name → Send Connect Request</div></div>`;
 }
-
-// ════════════════════════════════════════
-//  MESSAGES
-// ════════════════════════════════════════
 
 let lastDate = '', lastSender = '', lastGroup = null;
 
@@ -637,7 +496,6 @@ function appendMessage(msg, type) {
   const timeStr  = ts.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   const dateStr  = ts.toLocaleDateString([], { day: 'numeric', month: 'short', year: 'numeric' });
 
-  // Date separator
   if (dateStr !== lastDate) {
     const sep = document.createElement('div');
     sep.className = 'date-sep';
@@ -646,7 +504,6 @@ function appendMessage(msg, type) {
     lastDate = dateStr; lastSender = ''; lastGroup = null;
   }
 
-  // Group by sender
   if (senderId !== lastSender || !lastGroup) {
     lastGroup = document.createElement('div');
     lastGroup.className = `msg-group ${type}`;
@@ -660,26 +517,23 @@ function appendMessage(msg, type) {
     lastSender = senderId;
   }
 
-  // Bubble
   const bubble = document.createElement('div');
   bubble.className = 'msg-bubble';
   if (msgId) bubble.dataset.msgid = msgId;
   bubble._msgData = msg;
 
-  // Forwarded label
   if (msg.forwarded) {
     const fl = document.createElement('div');
     fl.style.cssText = 'font-size:.7rem;opacity:.7;margin-bottom:3px';
-    fl.textContent   = '↪ Forwarded';
+    fl.textContent = '↪ Forwarded';
     bubble.appendChild(fl);
   }
 
-  // Content
   if (imgData) {
     const imgEl = document.createElement('img');
     imgEl.className = 'msg-image';
-    imgEl.src       = imgData;
-    imgEl.alt       = 'image';
+    imgEl.src = imgData;
+    imgEl.alt = 'image';
     imgEl.addEventListener('click', e => { e.stopPropagation(); openLightbox(imgData); });
     bubble.appendChild(imgEl);
   } else {
@@ -688,27 +542,27 @@ function appendMessage(msg, type) {
     bubble.appendChild(t);
   }
 
-  // Meta: time + ticks
   const meta = document.createElement('div');
   meta.className = 'msg-meta';
-  meta.innerHTML = `
-    <span class="msg-time">${timeStr}</span>
-    ${isMe ? `<span class="msg-ticks">${tickSVG(status)}</span>` : ''}`;
+  meta.innerHTML = `<span class="msg-time">${timeStr}</span>${isMe ? `<span class="msg-ticks">${tickSVG(status)}</span>` : ''}`;
   bubble.appendChild(meta);
 
-  // ─── Context menu — right click + mobile long press ───
+  // ── Context menu: right-click (desktop) + long-press (mobile) ──
   let pressTimer;
 
   bubble.addEventListener('contextmenu', e => {
     e.preventDefault();
+    e.stopPropagation();
     showContextMenu(e, bubble, msg, isMe);
   });
 
+  // ✅ FIX 3: stopPropagation inside setTimeout so document touchstart doesn't close it
   bubble.addEventListener('touchstart', e => {
     const touch  = e.touches[0];
     const savedX = touch.clientX;
     const savedY = touch.clientY;
     pressTimer = setTimeout(() => {
+      // Stop the event from bubbling to document (which would close menu)
       showContextMenu({ clientX: savedX, clientY: savedY }, bubble, msg, isMe);
     }, 600);
   }, { passive: true });
@@ -717,17 +571,12 @@ function appendMessage(msg, type) {
   bubble.addEventListener('touchmove', () => clearTimeout(pressTimer));
 
   lastGroup.appendChild(bubble);
-} // ← THIS closing brace was missing before — now fixed!
+}
 
 function tickSVG(status) {
-  if (status === 'sent') {
-    return `<svg class="tick-sent" viewBox="0 0 16 10"><path d="M1 5l4 4L15 1" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
-  }
+  if (status === 'sent') return `<svg class="tick-sent" viewBox="0 0 16 10"><path d="M1 5l4 4L15 1" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
   const cls = status === 'seen' ? 'tick-seen' : 'tick-delivered';
-  return `<svg class="${cls}" viewBox="0 0 20 10">
-    <path d="M1 5l4 4L15 1" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-    <path d="M7 5l4 4 8-8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-  </svg>`;
+  return `<svg class="${cls}" viewBox="0 0 20 10"><path d="M1 5l4 4L15 1" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M7 5l4 4 8-8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 }
 
 function scrollBottom(instant = false) {
@@ -736,68 +585,79 @@ function scrollBottom(instant = false) {
 }
 
 // ════════════════════════════════════════
-//  CONTEXT MENU
+//  CONTEXT MENU — MOBILE FIXED
 // ════════════════════════════════════════
+
+// Track whether context menu was just shown (prevent immediate close)
+let contextMenuJustShown = false;
 
 function showContextMenu(e, bubble, msg, isMe) {
   if (bubble.dataset.deleted) return;
   contextMenu.innerHTML = '';
-  contextMenu.classList.remove('hidden');
 
   const items = [];
-
   if (msg.content) {
-    items.push({ label: '📋 Copy Text', action: () => {
-      navigator.clipboard.writeText(msg.content).catch(() => {});
-    }});
+    items.push({ label: '📋 Copy Text', action: () => { navigator.clipboard.writeText(msg.content).catch(() => {}); }});
   }
-
   if (msg.content || msg.imageData) {
     items.push({ label: '↪ Forward', action: () => openForwardModal(msg) });
   }
-
   if (isMe && msg._id && !bubble.dataset.deleted) {
     items.push({ label: '🗑️ Delete', cls: 'danger', action: () => {
       const msgId      = String(msg._id || msg.id);
       const chatType   = currentChat === 'public' ? 'public' : 'private';
       const receiverId = currentChat === 'public' ? '' : String(currentChat);
-
-      // Optimistic UI — replace immediately
       const replacement = document.createElement('div');
-      replacement.className       = 'msg-bubble';
-      replacement.dataset.msgid   = msgId;
+      replacement.className = 'msg-bubble';
+      replacement.dataset.msgid = msgId;
       replacement.dataset.deleted = '1';
-      replacement.style.opacity   = '.5';
-      replacement.style.cursor    = 'default';
+      replacement.style.opacity = '.5';
+      replacement.style.cursor = 'default';
       replacement.style.fontStyle = 'italic';
-      replacement.style.fontSize  = '.8rem';
-      replacement.textContent     = '🚫 Message deleted';
+      replacement.style.fontSize = '.8rem';
+      replacement.textContent = '🚫 Message deleted';
       bubble.replaceWith(replacement);
-
       socket.emit('deleteMessage', { msgId, type: chatType, senderId: String(userId), receiverId });
     }});
   }
 
-  if (!items.length) { contextMenu.classList.add('hidden'); return; }
+  if (!items.length) return;
 
   items.forEach(item => {
     const div = document.createElement('div');
     div.className   = `msg-context-item${item.cls ? ' ' + item.cls : ''}`;
     div.textContent = item.label;
-    div.addEventListener('click', () => { item.action(); hideContextMenu(); });
+    div.addEventListener('click', e => { e.stopPropagation(); item.action(); hideContextMenu(); });
+    // Also handle touch tap on menu items
+    div.addEventListener('touchend', e => { e.preventDefault(); e.stopPropagation(); item.action(); hideContextMenu(); });
     contextMenu.appendChild(div);
   });
 
-  const x = e.clientX !== undefined ? e.clientX : (e.pageX || window.innerWidth / 2);
-  const y = e.clientY !== undefined ? e.clientY : (e.pageY || window.innerHeight / 2);
+  // ✅ FIX 1: proper position calculation for mobile
+  const x = (typeof e.clientX === 'number') ? e.clientX : window.innerWidth / 2;
+  const y = (typeof e.clientY === 'number') ? e.clientY : window.innerHeight / 2;
   contextMenu.style.position = 'fixed';
-  contextMenu.style.left     = Math.min(x, window.innerWidth  - 160) + 'px';
-  contextMenu.style.top      = Math.min(y + 10, window.innerHeight - 150) + 'px';
+  contextMenu.style.zIndex   = '9999';
+  contextMenu.style.left     = Math.min(x, window.innerWidth  - 165) + 'px';
+  contextMenu.style.top      = Math.min(y + 8, window.innerHeight - 160) + 'px';
+  contextMenu.classList.remove('hidden');
+
+  // ✅ Prevent immediate close on mobile
+  contextMenuJustShown = true;
+  setTimeout(() => { contextMenuJustShown = false; }, 300);
 }
 
-function hideContextMenu() { contextMenu.classList.add('hidden'); }
-document.addEventListener('click',      hideContextMenu);
-document.addEventListener('touchstart', hideContextMenu, { passive: true });
+function hideContextMenu() {
+  contextMenu.classList.add('hidden');
+}
+
+document.addEventListener('click', () => { if (!contextMenuJustShown) hideContextMenu(); });
+
+// ✅ FIX 2: only close if touch is OUTSIDE context menu, and not right after showing
+document.addEventListener('touchstart', e => {
+  if (contextMenuJustShown) return;
+  if (!contextMenu.contains(e.target)) hideContextMenu();
+}, { passive: true });
 
 // ════════════════════════════════════════
 //  FORWARD
@@ -824,32 +684,21 @@ function renderForwardList(q) {
   });
   const container = $('forwardUserList');
   const publicSel = forwardSelUid === 'public';
-  let html = `
-    <div class="forward-user-item ${publicSel ? 'selected' : ''}" data-fwd-id="public"
-      style="display:flex;align-items:center;gap:10px;padding:10px 16px;cursor:pointer;transition:background .15s"
-      onmouseover="this.style.background='var(--hover)'" onmouseout="this.style.background=''">
-      <div style="width:36px;height:36px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0">🌍</div>
-      <div style="flex:1;font-weight:500;font-size:.9rem;color:var(--text-1)">General Chat</div>
-      ${publicSel ? '<span style="color:var(--accent);font-weight:700">✓</span>' : ''}
-    </div>`;
+  let html = `<div class="forward-user-item ${publicSel?'selected':''}" data-fwd-id="public" style="display:flex;align-items:center;gap:10px;padding:10px 16px;cursor:pointer">
+    <div style="width:36px;height:36px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0">🌍</div>
+    <div style="flex:1;font-weight:500;font-size:.9rem;color:var(--text-1)">General Chat</div>
+    ${publicSel ? '<span style="color:var(--accent);font-weight:700">✓</span>' : ''}
+  </div>`;
   contacts.forEach(user => {
-    const uid = String(user._id);
-    const sel = forwardSelUid === uid;
-    const av  = user.avatar
-      ? `<img src="${user.avatar}" style="width:36px;height:36px;border-radius:50%;object-fit:cover"/>`
-      : `<div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent-dark));color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.9rem;flex-shrink:0">${user.username.charAt(0).toUpperCase()}</div>`;
-    html += `
-      <div class="forward-user-item ${sel ? 'selected' : ''}" data-fwd-id="${uid}"
-        style="display:flex;align-items:center;gap:10px;padding:10px 16px;cursor:pointer;transition:background .15s"
-        onmouseover="this.style.background='var(--hover)'" onmouseout="this.style.background=''">
-        <div style="flex-shrink:0">${av}</div>
-        <div style="flex:1;font-weight:500;font-size:.9rem;color:var(--text-1)">${escHtml(user.username)}</div>
-        ${sel ? '<span style="color:var(--accent);font-weight:700">✓</span>' : ''}
-      </div>`;
+    const uid = String(user._id), sel = forwardSelUid === uid;
+    const av = user.avatar ? `<img src="${user.avatar}" style="width:36px;height:36px;border-radius:50%;object-fit:cover"/>` : `<div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent-dark));color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.9rem;flex-shrink:0">${user.username.charAt(0).toUpperCase()}</div>`;
+    html += `<div class="forward-user-item ${sel?'selected':''}" data-fwd-id="${uid}" style="display:flex;align-items:center;gap:10px;padding:10px 16px;cursor:pointer">
+      <div style="flex-shrink:0">${av}</div>
+      <div style="flex:1;font-weight:500;font-size:.9rem;color:var(--text-1)">${escHtml(user.username)}</div>
+      ${sel ? '<span style="color:var(--accent);font-weight:700">✓</span>' : ''}
+    </div>`;
   });
-  if (!contacts.length) {
-    html += `<div style="padding:20px;text-align:center;color:var(--text-2);font-size:.85rem">No contacts yet</div>`;
-  }
+  if (!contacts.length) html += `<div style="padding:20px;text-align:center;color:var(--text-2);font-size:.85rem">No contacts yet</div>`;
   container.innerHTML = html;
   container.querySelectorAll('.forward-user-item').forEach(el => {
     el.addEventListener('click', () => {
@@ -863,95 +712,48 @@ function renderForwardList(q) {
 
 $('forwardSearch').addEventListener('input', e => renderForwardList(e.target.value.trim()));
 $('closeForwardModal').addEventListener('click', () => { forwardModal.classList.add('hidden'); forwardingMsg = null; forwardSelUid = null; });
-forwardModal.addEventListener('click', e => {
-  if (e.target === forwardModal) { forwardModal.classList.add('hidden'); forwardingMsg = null; forwardSelUid = null; }
-});
+forwardModal.addEventListener('click', e => { if (e.target === forwardModal) { forwardModal.classList.add('hidden'); forwardingMsg = null; forwardSelUid = null; } });
 $('doForwardBtn').addEventListener('click', () => {
   if (!forwardingMsg || !forwardSelUid) return;
   const payload = { message: forwardingMsg.content || '', imageData: forwardingMsg.imageData || '', imageType: forwardingMsg.imageType || '', forwarded: true };
-  if (forwardSelUid === 'public') {
-    socket.emit('sendMessage', { userId, username, ...payload });
-    showToastSimple('✅ Forwarded to General Chat');
-  } else {
-    socket.emit('privateMessage', { senderId: userId, senderName: username, receiverId: forwardSelUid, ...payload });
-    const t = allUsers.find(u => String(u._id) === forwardSelUid);
-    showToastSimple(`✅ Forwarded to ${t ? escHtml(t.username) : 'user'}`);
-  }
+  if (forwardSelUid === 'public') { socket.emit('sendMessage', { userId, username, ...payload }); showToastSimple('✅ Forwarded to General Chat'); }
+  else { socket.emit('privateMessage', { senderId: userId, senderName: username, receiverId: forwardSelUid, ...payload }); const t = allUsers.find(u => String(u._id) === forwardSelUid); showToastSimple(`✅ Forwarded to ${t ? escHtml(t.username) : 'user'}`); }
   forwardModal.classList.add('hidden'); forwardingMsg = null; forwardSelUid = null;
 });
-
-// ════════════════════════════════════════
-//  SEND MESSAGE
-// ════════════════════════════════════════
 
 function sendMessage() {
   const text = messageInput.value.trim();
   if (!text && !selectedImage) return;
   if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
-
   if (currentChat !== 'public') {
     const user = allUsers.find(u => String(u._id) === currentChat);
-    if (user && user.connectionStatus !== 'connected') {
-      showToastSimple('🔒 Connect with this person first');
-      return;
-    }
+    if (user && user.connectionStatus !== 'connected') { showToastSimple('🔒 Connect with this person first'); return; }
   }
-
-  const payload = {
-    message:   text,
-    imageData: selectedImage ? selectedImage.data : '',
-    imageType: selectedImage ? selectedImage.type : ''
-  };
-
-  if (currentChat === 'public') {
-    socket.emit('sendMessage', { userId, username, ...payload });
-  } else {
-    socket.emit('privateMessage', { senderId: userId, senderName: username, receiverId: currentChat, ...payload });
-  }
-
+  const payload = { message: text, imageData: selectedImage ? selectedImage.data : '', imageType: selectedImage ? selectedImage.type : '' };
+  if (currentChat === 'public') { socket.emit('sendMessage', { userId, username, ...payload }); }
+  else { socket.emit('privateMessage', { senderId: userId, senderName: username, receiverId: currentChat, ...payload }); }
   messageInput.value = '';
   clearSelectedImage();
   stopTyping();
 }
 
 sendBtn.addEventListener('click', sendMessage);
-messageInput.addEventListener('keydown', e => {
-  if (e.key === 'Enter' && !e.shiftKey && enterSend) { e.preventDefault(); sendMessage(); }
-});
-messageInput.addEventListener('input', () => {
-  socket.emit('typing', { username, chatId: currentChat });
-  clearTimeout(typingTimer);
-  typingTimer = setTimeout(stopTyping, 1500);
-});
+messageInput.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey && enterSend) { e.preventDefault(); sendMessage(); } });
+messageInput.addEventListener('input', () => { socket.emit('typing', { username, chatId: currentChat }); clearTimeout(typingTimer); typingTimer = setTimeout(stopTyping, 1500); });
 function stopTyping() { socket.emit('stopTyping', { username, chatId: currentChat }); }
 
-// ─── Image Upload ─────────────────────────
 $('imageBtn').addEventListener('click', () => imageInput.click());
 imageInput.addEventListener('change', () => {
   const file = imageInput.files[0];
   if (!file) return;
   if (file.size > 8 * 1024 * 1024) { alert('Image too large. Max 8MB.'); return; }
   const reader = new FileReader();
-  reader.onload = e => {
-    selectedImage = { data: e.target.result, type: file.type, name: file.name };
-    imagePreviewImg.src      = e.target.result;
-    previewLabel.textContent = file.name;
-    imagePreviewWrap.classList.remove('hidden');
-    messageInput.focus();
-  };
+  reader.onload = e => { selectedImage = { data: e.target.result, type: file.type, name: file.name }; imagePreviewImg.src = e.target.result; previewLabel.textContent = file.name; imagePreviewWrap.classList.remove('hidden'); messageInput.focus(); };
   reader.readAsDataURL(file);
   imageInput.value = '';
 });
 $('cancelImageBtn').addEventListener('click', clearSelectedImage);
-function clearSelectedImage() {
-  selectedImage = null;
-  imagePreviewWrap.classList.add('hidden');
-  imagePreviewImg.src = '';
-}
-
-// ════════════════════════════════════════
-//  EMOJI PICKER
-// ════════════════════════════════════════
+function clearSelectedImage() { selectedImage = null; imagePreviewWrap.classList.add('hidden'); imagePreviewImg.src = ''; }
 
 const EMOJI_CATS = {
   '😊':['😀','😃','😄','😁','😆','😅','😂','🤣','😊','😇','🙂','🙃','😉','😌','😍','🥰','😘','😗','😙','😚','😋','😛','😝','😜','🤪','🤨','🧐','🤓','😎','🥸','🤩','🥳','😏','😒','😞','😔','😟','😕','🙁','☹️','😣','😖','😫','😩','🥺','😢','😭','😤','😠','😡','🤬','🤯','😳','🥵','🥶','😱','😨','😰','😥','😓','🤗','🤔','🤭','🤫','🤥','😶','😑','😬','🙄','😯','😦','😧','😮','😲','🥱','😴','🤤','😪','😵','🤐','🥴','🤢','🤮','🤧','😷','🤒','🤕'],
@@ -969,7 +771,7 @@ function buildEmojiPicker() {
   tabs.className = 'emoji-cat-tabs';
   Object.keys(EMOJI_CATS).forEach(cat => {
     const btn = document.createElement('button');
-    btn.className   = `emoji-cat-tab${cat === currentEmojiCat ? ' active' : ''}`;
+    btn.className = `emoji-cat-tab${cat === currentEmojiCat ? ' active' : ''}`;
     btn.textContent = cat;
     btn.addEventListener('click', e => { e.stopPropagation(); currentEmojiCat = cat; buildEmojiPicker(); });
     tabs.appendChild(btn);
@@ -978,7 +780,7 @@ function buildEmojiPicker() {
   grid.className = 'emoji-grid';
   EMOJI_CATS[currentEmojiCat].forEach(em => {
     const span = document.createElement('span');
-    span.className   = 'emoji-btn-item';
+    span.className = 'emoji-btn-item';
     span.textContent = em;
     span.addEventListener('click', e => { e.stopPropagation(); messageInput.value += em; messageInput.focus(); });
     grid.appendChild(span);
@@ -988,66 +790,39 @@ function buildEmojiPicker() {
   emojiPicker.appendChild(grid);
 }
 
-$('emojiBtn').addEventListener('click', e => {
-  e.stopPropagation();
-  if (emojiPicker.classList.toggle('open')) buildEmojiPicker();
-});
-document.addEventListener('click', e => {
-  if (!emojiPicker.contains(e.target) && e.target !== $('emojiBtn'))
-    emojiPicker.classList.remove('open');
-});
-
-// ════════════════════════════════════════
-//  TOAST
-// ════════════════════════════════════════
+$('emojiBtn').addEventListener('click', e => { e.stopPropagation(); if (emojiPicker.classList.toggle('open')) buildEmojiPicker(); });
+document.addEventListener('click', e => { if (!emojiPicker.contains(e.target) && e.target !== $('emojiBtn')) emojiPicker.classList.remove('open'); });
 
 function showToast(name, text, chatId) {
   const user = allUsers.find(u => u.username === name) || {};
-  const av   = user.avatar ? `<img src="${user.avatar}" alt=""/>` : name.charAt(0).toUpperCase();
-  const tc   = $('toastContainer');
-  const t    = document.createElement('div');
+  const av = user.avatar ? `<img src="${user.avatar}" alt=""/>` : name.charAt(0).toUpperCase();
+  const tc = $('toastContainer');
+  const t = document.createElement('div');
   t.className = 'toast';
-  t.innerHTML = `
-    <div class="toast-av">${av}</div>
-    <div class="toast-info">
-      <div class="toast-name">${escHtml(name)}</div>
-      <div class="toast-msg">${escHtml((text || '').slice(0, 60))}</div>
-    </div>`;
-  t.addEventListener('click', () => {
-    if (chatId === 'public') openPublicChat();
-    else { const u = allUsers.find(x => String(x._id) === chatId); if (u) openPrivateChat(chatId, u.username); }
-    t.remove();
-  });
+  t.innerHTML = `<div class="toast-av">${av}</div><div class="toast-info"><div class="toast-name">${escHtml(name)}</div><div class="toast-msg">${escHtml((text||'').slice(0,60))}</div></div>`;
+  t.addEventListener('click', () => { if (chatId === 'public') openPublicChat(); else { const u = allUsers.find(x => String(x._id) === chatId); if (u) openPrivateChat(chatId, u.username); } t.remove(); });
   tc.appendChild(t);
   setTimeout(() => { t.classList.add('out'); setTimeout(() => t.remove(), 300); }, 4000);
 }
 
 function showToastSimple(text) {
   const tc = $('toastContainer');
-  const t  = document.createElement('div');
+  const t = document.createElement('div');
   t.className = 'toast';
   t.innerHTML = `<div class="toast-info"><div class="toast-msg" style="font-weight:500">${escHtml(text)}</div></div>`;
   tc.appendChild(t);
   setTimeout(() => { t.classList.add('out'); setTimeout(() => t.remove(), 300); }, 2800);
 }
 
-// ════════════════════════════════════════
-//  LIGHTBOX
-// ════════════════════════════════════════
-
 function openLightbox(src) { $('lightboxImg').src = src; $('lightbox').classList.remove('hidden'); }
 $('lightboxClose').addEventListener('click', () => $('lightbox').classList.add('hidden'));
 $('lightbox').addEventListener('click', e => { if (e.target === $('lightbox')) $('lightbox').classList.add('hidden'); });
 
-// ════════════════════════════════════════
-//  PROFILE MODAL
-// ════════════════════════════════════════
-
 function openProfileModal() {
   const av = localStorage.getItem('avatar') || '';
-  const ab = localStorage.getItem('about')  || '';
-  $('profileUsername').value      = username;
-  $('profileAbout').value         = ab;
+  const ab = localStorage.getItem('about') || '';
+  $('profileUsername').value = username;
+  $('profileAbout').value = ab;
   $('aboutCharCount').textContent = ab.length;
   const big = $('profileAvatarBig');
   big.innerHTML = av ? `<img src="${av}" alt=""/>` : '';
@@ -1055,12 +830,10 @@ function openProfileModal() {
   $('profileModal').classList.remove('hidden');
 }
 
-$('editProfileBtn').addEventListener('click',    openProfileModal);
-$('myProfileChip').addEventListener('click',     openProfileModal);
+$('editProfileBtn').addEventListener('click', openProfileModal);
+$('myProfileChip').addEventListener('click', openProfileModal);
 $('closeProfileModal').addEventListener('click', () => $('profileModal').classList.add('hidden'));
-$('profileAbout').addEventListener('input', () => {
-  $('aboutCharCount').textContent = $('profileAbout').value.length;
-});
+$('profileAbout').addEventListener('input', () => { $('aboutCharCount').textContent = $('profileAbout').value.length; });
 $('avatarInput').addEventListener('change', () => {
   const file = $('avatarInput').files[0];
   if (!file) return;
@@ -1070,18 +843,15 @@ $('avatarInput').addEventListener('change', () => {
   reader.readAsDataURL(file);
 });
 $('saveProfileBtn').addEventListener('click', async () => {
-  const about  = $('profileAbout').value.trim();
-  const imgEl  = $('profileAvatarBig').querySelector('img');
+  const about = $('profileAbout').value.trim();
+  const imgEl = $('profileAvatarBig').querySelector('img');
   const avatar = imgEl ? imgEl.src : (localStorage.getItem('avatar') || '');
   $('saveProfileBtn').textContent = 'Saving…'; $('saveProfileBtn').disabled = true;
   try {
-    const res  = await fetch('/api/auth/profile', {
-      method: 'PUT', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ about, avatar })
-    });
+    const res = await fetch('/api/auth/profile', { method: 'PUT', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ about, avatar }) });
     if (!res.ok) throw new Error('Failed');
     const data = await res.json();
-    localStorage.setItem('about',  data.about  || '');
+    localStorage.setItem('about', data.about || '');
     localStorage.setItem('avatar', data.avatar || '');
     initMyProfile();
     socket.emit('profileUpdated', { userId, username, avatar: data.avatar || '', about: data.about || '' });
@@ -1092,17 +862,12 @@ $('saveProfileBtn').addEventListener('click', async () => {
 
 $('viewProfileBtn').addEventListener('click', () => { if (viewingUser) openUserActionModal(viewingUser); });
 
-// ════════════════════════════════════════
-//  SETTINGS
-// ════════════════════════════════════════
-
 $('settingsBtn').addEventListener('click', () => {
   if (document.body.classList.contains('light')) $('themeToggle').classList.add('on');
   else $('themeToggle').classList.remove('on');
   $('soundToggle').classList.toggle('on', soundOn);
   $('enterSendToggle').classList.toggle('on', enterSend);
-  const dmSel   = $('dmPrivacySelect');
-  const aliasIn = $('publicAliasInput');
+  const dmSel = $('dmPrivacySelect'), aliasIn = $('publicAliasInput');
   if (dmSel)   dmSel.value   = localStorage.getItem('dmPrivacy')   || 'connected';
   if (aliasIn) aliasIn.value = localStorage.getItem('publicAlias') || '';
   $('settingsModal').classList.remove('hidden');
@@ -1112,13 +877,10 @@ $('changeUsernameBtn').addEventListener('click', async () => {
   const newName = prompt('Enter new username (letters, numbers, _ only):');
   if (!newName) return;
   try {
-    const res  = await fetch('/api/auth/username', {
-      method: 'PUT', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ newUsername: newName.trim() })
-    });
+    const res = await fetch('/api/auth/username', { method: 'PUT', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ newUsername: newName.trim() }) });
     const data = await res.json();
     if (!res.ok) return alert(data.error || 'Failed');
-    localStorage.setItem('token',    data.token);
+    localStorage.setItem('token', data.token);
     localStorage.setItem('username', data.username);
     alert('✅ Username changed! Page will reload.');
     location.reload();
@@ -1129,9 +891,7 @@ $('deleteAccountBtn').addEventListener('click', async () => {
   if (!confirm('⚠️ Delete your account permanently?')) return;
   if (!confirm('Are you sure? All messages will be deleted!')) return;
   try {
-    const res = await fetch('/api/auth/account', {
-      method: 'DELETE', headers: { Authorization: `Bearer ${token}` }
-    });
+    const res = await fetch('/api/auth/account', { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
     if (!res.ok) return alert('Delete failed.');
     localStorage.clear();
     window.location.href = '/index.html';
@@ -1139,31 +899,15 @@ $('deleteAccountBtn').addEventListener('click', async () => {
 });
 
 $('closeSettingsModal').addEventListener('click', () => $('settingsModal').classList.add('hidden'));
-
-$('themeToggle').addEventListener('click', () => {
-  const light = document.body.classList.toggle('light');
-  $('themeToggle').classList.toggle('on', light);
-  localStorage.setItem('theme', light ? 'light' : 'dark');
-});
-$('soundToggle').addEventListener('click', () => {
-  soundOn = !soundOn;
-  $('soundToggle').classList.toggle('on', soundOn);
-  localStorage.setItem('soundOn', soundOn);
-});
-$('enterSendToggle').addEventListener('click', () => {
-  enterSend = !enterSend;
-  $('enterSendToggle').classList.toggle('on', enterSend);
-  localStorage.setItem('enterSend', enterSend);
-});
+$('themeToggle').addEventListener('click', () => { const light = document.body.classList.toggle('light'); $('themeToggle').classList.toggle('on', light); localStorage.setItem('theme', light ? 'light' : 'dark'); });
+$('soundToggle').addEventListener('click', () => { soundOn = !soundOn; $('soundToggle').classList.toggle('on', soundOn); localStorage.setItem('soundOn', soundOn); });
+$('enterSendToggle').addEventListener('click', () => { enterSend = !enterSend; $('enterSendToggle').classList.toggle('on', enterSend); localStorage.setItem('enterSend', enterSend); });
 
 const dmSel = $('dmPrivacySelect');
 if (dmSel) {
   dmSel.addEventListener('change', async () => {
     try {
-      const res = await fetch('/api/auth/profile', {
-        method: 'PUT', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ dmPrivacy: dmSel.value })
-      });
+      const res = await fetch('/api/auth/profile', { method: 'PUT', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ dmPrivacy: dmSel.value }) });
       if (res.ok) { localStorage.setItem('dmPrivacy', dmSel.value); showToastSimple('✅ Privacy updated'); }
     } catch {}
   });
@@ -1174,10 +918,7 @@ if (aliasBtn) {
   aliasBtn.addEventListener('click', async () => {
     const alias = ($('publicAliasInput').value || '').trim();
     try {
-      const res = await fetch('/api/auth/profile', {
-        method: 'PUT', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ publicAlias: alias })
-      });
+      const res = await fetch('/api/auth/profile', { method: 'PUT', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ publicAlias: alias }) });
       if (res.ok) { localStorage.setItem('publicAlias', alias); showToastSimple(alias ? `✅ Alias set: ${alias}` : '✅ Alias cleared'); }
     } catch {}
   });
@@ -1193,10 +934,6 @@ $('clearCacheBtn').addEventListener('click', () => {
 });
 $('settingsLogoutBtn').addEventListener('click', logout);
 
-// ════════════════════════════════════════
-//  LOGOUT
-// ════════════════════════════════════════
-
 function logout() {
   if (!confirm('Logout?')) return;
   try { socket.disconnect(); } catch {}
@@ -1205,18 +942,11 @@ function logout() {
 }
 $('logoutBtn').addEventListener('click', logout);
 
-// ════════════════════════════════════════
-//  MISC
-// ════════════════════════════════════════
-
 $('searchInput').addEventListener('input', renderUsers);
 $('publicRoomBtn').addEventListener('click', openPublicChat);
 
 function showChatOnMobile() {
-  if (window.innerWidth <= 768) {
-    chatLayout.classList.add('chat-open');
-    $('mobileBack').style.display = 'flex';
-  }
+  if (window.innerWidth <= 768) { chatLayout.classList.add('chat-open'); $('mobileBack').style.display = 'flex'; }
 }
 $('mobileBack').addEventListener('click', () => chatLayout.classList.remove('chat-open'));
 window.addEventListener('resize', () => { if (window.innerWidth > 768) $('mobileBack').style.display = ''; });
@@ -1228,10 +958,6 @@ window.addEventListener('resize', () => { if (window.innerWidth > 768) $('mobile
 function escHtml(s = '') {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
-
-// ════════════════════════════════════════
-//  INIT
-// ════════════════════════════════════════
 
 openPublicChat();
 loadUsers();
